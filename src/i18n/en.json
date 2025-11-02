@@ -1,0 +1,4 @@
+{
+  "auth.success": "Login successful",
+  "auth.invalid": "Invalid credentials"
+}
