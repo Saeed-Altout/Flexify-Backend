@@ -31,5 +31,16 @@
   "common.success": "Operation completed successfully",
   "common.error": "An error occurred",
   "common.unauthorized": "Unauthorized access",
-  "common.validation.error": "Validation failed"
+  "common.validation.error": "Validation failed",
+  "projects.created": "Project created successfully",
+  "projects.updated": "Project updated successfully",
+  "projects.deleted": "Project deleted successfully",
+  "projects.notFound": "Project not found",
+  "projects.forbidden": "You don't have permission to perform this action",
+  "projects.slug.exists": "A project with this slug already exists",
+  "projects.list": "Projects retrieved successfully",
+  "projects.found": "Project retrieved successfully",
+  "projects.rated": "Project rated successfully",
+  "projects.liked": "Project liked successfully",
+  "projects.unliked": "Project unliked successfully"
 }

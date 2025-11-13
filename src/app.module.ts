@@ -8,11 +8,16 @@ import { EnvironmentVariables } from './config/env.validation';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { AuthModule } from './modules/auth/auth.module';
+import { ProjectsModule } from './modules/projects/projects.module';
 import { SeedersModule } from './seeders/seeders.module';
 import { User } from './modules/users/entities/user.entity';
 import { Session } from './modules/auth/entities/session.entity';
 import { PasswordResetToken } from './modules/auth/entities/password-reset-token.entity';
 import { VerificationCode } from './modules/auth/entities/verification-code.entity';
+import { Project } from './modules/projects/entities/project.entity';
+import { ProjectTranslation } from './modules/projects/entities/project-translation.entity';
+import { ProjectRating } from './modules/projects/entities/project-rating.entity';
+import { ProjectLike } from './modules/projects/entities/project-like.entity';
 
 @Module({
   imports: [
@@ -33,7 +38,16 @@ import { VerificationCode } from './modules/auth/entities/verification-code.enti
         username: configService.get('DB_USER'),
         password: configService.get('DB_PASSWORD'),
         database: configService.get('DB_NAME'),
-        entities: [User, Session, PasswordResetToken, VerificationCode],
+        entities: [
+          User,
+          Session,
+          PasswordResetToken,
+          VerificationCode,
+          Project,
+          ProjectTranslation,
+          ProjectRating,
+          ProjectLike,
+        ],
         synchronize: true,
         ssl:
           configService.get('DB_SSL_MODE') === 'require'
@@ -60,6 +74,7 @@ import { VerificationCode } from './modules/auth/entities/verification-code.enti
       inject: [ConfigService],
     }),
     AuthModule,
+    ProjectsModule,
     SeedersModule,
   ],
   controllers: [AppController],
