@@ -8,6 +8,7 @@ import { EnvironmentVariables } from './config/env.validation';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { AuthModule } from './modules/auth/auth.module';
+import { SeedersModule } from './seeders/seeders.module';
 import { User } from './modules/users/entities/user.entity';
 import { Session } from './modules/auth/entities/session.entity';
 import { PasswordResetToken } from './modules/auth/entities/password-reset-token.entity';
@@ -59,6 +60,7 @@ import { VerificationCode } from './modules/auth/entities/verification-code.enti
       inject: [ConfigService],
     }),
     AuthModule,
+    SeedersModule,
   ],
   controllers: [AppController],
   providers: [AppService],

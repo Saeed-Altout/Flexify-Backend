@@ -8,6 +8,8 @@ import {
   UseGuards,
   Get,
   Req,
+  Param,
+  NotFoundException,
 } from '@nestjs/common';
 import type { Response, Request } from 'express';
 import { AuthService } from './auth.service';
@@ -64,6 +66,7 @@ export class AuthController {
           role: user.role,
           email_verified: user.email_verified,
         },
+        session_token: loginResult.session_token, // Include token for server actions
       },
       TranslationUtil.translate('auth.register.success', lang),
       lang,
@@ -106,6 +109,7 @@ export class AuthController {
           role: user.role,
           email_verified: user.email_verified,
         },
+        session_token: loginResult.session_token, // Include token for server actions
       },
       TranslationUtil.translate('auth.register.success', lang),
       lang,
@@ -132,7 +136,10 @@ export class AuthController {
     });
 
     return ResponseUtil.success(
-      { user: result.user },
+      {
+        user: result.user,
+        session_token: result.session_token, // Include token for server actions
+      },
       TranslationUtil.translate('auth.login.success', lang),
       lang,
     );
@@ -141,13 +148,10 @@ export class AuthController {
   @Post('logout')
   @HttpCode(HttpStatus.OK)
   @UseGuards(SessionGuard)
-  async logout(
-    @Req() req: Request,
-    @Res({ passthrough: true }) res: Response,
-  ) {
+  async logout(@Req() req: Request, @Res({ passthrough: true }) res: Response) {
     const lang = RequestUtil.getLanguage(req);
     const sessionToken = this.extractTokenFromRequest(req);
-    
+
     if (sessionToken) {
       await this.authService.logout(sessionToken);
     }
@@ -169,10 +173,7 @@ export class AuthController {
 
   @Get('me')
   @UseGuards(SessionGuard)
-  async getCurrentUser(
-    @CurrentUser() user: User,
-    @Req() req: Request,
-  ) {
+  async getCurrentUser(@CurrentUser() user: User, @Req() req: Request) {
     const lang = RequestUtil.getLanguage(req);
     return ResponseUtil.success(
       {
@@ -293,6 +294,43 @@ export class AuthController {
     );
   }
 
+  @Get('user/:id')
+  @UseGuards(SessionGuard)
+  async getUserById(@Param('id') id: string, @Req() req: Request) {
+    const lang = RequestUtil.getLanguage(req);
+    const user = await this.authService.getUserById(id);
+
+    if (!user) {
+      throw new NotFoundException(
+        TranslationUtil.translate('auth.user.notFound', lang),
+      );
+    }
+
+    return ResponseUtil.success(
+      { user },
+      TranslationUtil.translate('auth.me.success', lang),
+      lang,
+    );
+  }
+
+  @Get('user/email/:email')
+  async getUserByEmail(@Param('email') email: string, @Req() req: Request) {
+    const lang = RequestUtil.getLanguage(req);
+    const user = await this.authService.getUserByEmail(email);
+
+    if (!user) {
+      throw new NotFoundException(
+        TranslationUtil.translate('auth.user.notFound', lang),
+      );
+    }
+
+    return ResponseUtil.success(
+      { user },
+      TranslationUtil.translate('auth.me.success', lang),
+      lang,
+    );
+  }
+
   private extractTokenFromRequest(request: any): string | null {
     // Try to get token from Authorization header
     const authHeader = request.headers.authorization;
@@ -308,4 +346,3 @@ export class AuthController {
     return null;
   }
 }
-

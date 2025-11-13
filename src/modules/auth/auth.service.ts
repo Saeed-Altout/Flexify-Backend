@@ -440,6 +440,18 @@ export class AuthService {
     await this.sendVerificationCode(email, req);
   }
 
+  async getUserById(userId: string): Promise<User | null> {
+    return await this.userRepository.findOne({
+      where: { id: userId },
+    });
+  }
+
+  async getUserByEmail(email: string): Promise<User | null> {
+    return await this.userRepository.findOne({
+      where: { email },
+    });
+  }
+
   private calculateExpirationDate(expiresIn: string): Date {
     const now = new Date();
     const match = expiresIn.match(/^(\d+)([dhms])$/);
