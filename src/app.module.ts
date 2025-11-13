@@ -7,6 +7,8 @@ import { EnvironmentVariables } from './config/env.validation';
 
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
+import { ModuleTestModule } from './modules/module-test/module-test.module';
+import { ModuleTest } from './common/entities/module-test.entity';
 
 @Module({
   imports: [
@@ -27,9 +29,12 @@ import { AppService } from './app.service';
         username: configService.get('DB_USER'),
         password: configService.get('DB_PASSWORD'),
         database: configService.get('DB_NAME'),
-        entities: [],
+        entities: [ModuleTest],
         synchronize: true,
-        ssl: configService.get('DB_SSL') === 'true',
+        ssl:
+          configService.get('DB_SSL_MODE') === 'require'
+            ? { rejectUnauthorized: false }
+            : false,
         logging: configService.get('NODE_ENV') === 'development',
       }),
       inject: [ConfigService],
@@ -50,6 +55,7 @@ import { AppService } from './app.service';
       ],
       inject: [ConfigService],
     }),
+    ModuleTestModule,
   ],
   controllers: [AppController],
   providers: [AppService],

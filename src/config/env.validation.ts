@@ -71,4 +71,18 @@ export class EnvironmentVariables {
   @IsOptional()
   @IsString()
   BASE_URL?: string;
+
+  @IsOptional()
+  @IsString()
+  MULTER_DESTINATION?: string;
+
+  @IsOptional()
+  @Type(() => Number)
+  @IsNumber()
+  MULTER_MAX_FILE_SIZE?: number;
+
+  @IsOptional()
+  @Type(() => Number)
+  @IsNumber()
+  MULTER_MAX_FILES?: number;
 }

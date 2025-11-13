@@ -4,14 +4,18 @@ import { config } from 'dotenv';
 config();
 
 export default new DataSource({
-  type: 'mysql',
+  type: 'postgres',
   host: process.env.DB_HOST || 'localhost',
-  port: parseInt(process.env.DB_PORT || '3306'),
-  username: process.env.DB_USER || 'root',
-  password: process.env.DB_PASS || '',
-  database: process.env.DB_NAME || 'sanam_db',
+  port: parseInt(process.env.DB_PORT || '5432', 10),
+  username: process.env.DB_USER || 'postgres',
+  password: process.env.DB_PASSWORD || 'postgres',
+  database: process.env.DB_NAME || 'flexify_db',
   entities: ['src/**/*.entity{.ts,.js}'],
   migrations: ['src/migrations/*{.ts,.js}'],
   synchronize: false,
   logging: false,
+  ssl:
+    process.env.DB_SSL_MODE === 'require'
+      ? { rejectUnauthorized: false }
+      : false,
 });

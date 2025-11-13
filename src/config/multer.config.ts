@@ -4,7 +4,7 @@ import { v4 as uuidv4 } from 'uuid';
 
 export const multerConfig = {
   storage: diskStorage({
-    destination: './uploads/gallery',
+    destination: process.env.MULTER_DESTINATION || './uploads/gallery',
     filename: (req, file, callback) => {
       const uniqueSuffix = uuidv4();
       const fileExtension = extname(file.originalname);
@@ -48,7 +48,7 @@ export const multerConfig = {
     }
   },
   limits: {
-    fileSize: 50 * 1024 * 1024, // 50MB
-    files: 10, // Maximum 10 files
+    fileSize: parseInt(process.env.MULTER_MAX_FILE_SIZE || '52428800', 10), // Default 50MB
+    files: parseInt(process.env.MULTER_MAX_FILES || '10', 10), // Default 10 files
   },
 };
