@@ -7,6 +7,7 @@ import {
 import { AuthService } from '../auth.service';
 import { TranslationUtil } from 'src/core/utils/translations';
 import { RequestUtil } from 'src/core/utils/request.util';
+import { SESSION_TOKEN_COOKIE_NAME } from 'src/constants/auth.constants';
 
 @Injectable()
 export class SessionGuard implements CanActivate {
@@ -46,8 +47,8 @@ export class SessionGuard implements CanActivate {
     }
 
     // Try to get token from cookie
-    if (request.cookies && request.cookies.session_token) {
-      return request.cookies.session_token;
+    if (request.cookies && request.cookies[SESSION_TOKEN_COOKIE_NAME]) {
+      return request.cookies[SESSION_TOKEN_COOKIE_NAME];
     }
 
     // Try to get token from query parameter (for testing)

@@ -25,6 +25,10 @@ import { User } from '../users/entities/user.entity';
 import { ResponseUtil } from 'src/core/utils/response';
 import { TranslationUtil } from 'src/core/utils/translations';
 import { RequestUtil } from 'src/core/utils/request.util';
+import {
+  SESSION_TOKEN_COOKIE_NAME,
+  SESSION_EXPIRATION_MS,
+} from 'src/constants/auth.constants';
 
 @Controller('auth')
 export class AuthController {
@@ -48,11 +52,11 @@ export class AuthController {
     const loginResult = await this.authService.login(loginDto, req);
 
     // Set HttpOnly cookie
-    res.cookie('session_token', loginResult.session_token, {
+    res.cookie(SESSION_TOKEN_COOKIE_NAME, loginResult.session_token, {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
       sameSite: 'lax',
-      maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
+      maxAge: SESSION_EXPIRATION_MS,
       path: '/',
     });
 
@@ -91,11 +95,11 @@ export class AuthController {
     const loginResult = await this.authService.login(loginDto, req);
 
     // Set HttpOnly cookie
-    res.cookie('session_token', loginResult.session_token, {
+    res.cookie(SESSION_TOKEN_COOKIE_NAME, loginResult.session_token, {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
       sameSite: 'lax',
-      maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
+      maxAge: SESSION_EXPIRATION_MS,
       path: '/',
     });
 
@@ -127,7 +131,7 @@ export class AuthController {
     const result = await this.authService.login(loginDto, req);
 
     // Set HttpOnly cookie
-    res.cookie('session_token', result.session_token, {
+    res.cookie('NEXT_FLEXIFY_SESSION_TOKEN', result.session_token, {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
       sameSite: 'lax',
@@ -157,7 +161,7 @@ export class AuthController {
     }
 
     // Clear cookie
-    res.clearCookie('session_token', {
+    res.clearCookie(SESSION_TOKEN_COOKIE_NAME, {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
       sameSite: 'lax',
@@ -339,8 +343,8 @@ export class AuthController {
     }
 
     // Try to get token from cookie
-    if (request.cookies && request.cookies.session_token) {
-      return request.cookies.session_token;
+    if (request.cookies && request.cookies[SESSION_TOKEN_COOKIE_NAME]) {
+      return request.cookies[SESSION_TOKEN_COOKIE_NAME];
     }
 
     return null;
