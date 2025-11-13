@@ -1,25 +1,9 @@
-#!/usr/bin/env node
-
-/**
- * Database Seeder Script
- *
- * This script runs the database seeders to populate the database with:
- * - Roles (super_admin, admin, user, agent, moderator)
- * - Permissions (based on all services)
- * - Admin user (admin@sanam.com / admin123)
- *
- * Usage:
- * npm run seed
- * or
- * node dist/seeders/run-seeders.js
- */
-
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from '../app.module';
 import { DatabaseSeeder } from './database.seeder';
 
 async function runSeeders() {
-  console.log('🚀 Starting database seeding process...\n');
+  console.log('🚀 Initiating the database seeding process...');
 
   try {
     // Create NestJS application context
@@ -34,11 +18,17 @@ async function runSeeders() {
     // Close the application
     await app.close();
 
-    console.log('\n🎉 Database seeding completed successfully!');
-    console.log('\n📋 Summary:');
-    console.log('\n🌐 You can now login to the admin panel!');
+    console.log('\n✅ Database seeding finished successfully!');
+    console.log('-----------------------------------------');
+    console.log('📋 Next steps:\n');
+    console.log('   - Your database is now ready with initial data.');
+    console.log(
+      '   - You can log in to the admin panel using the seeded credentials.',
+    );
+    console.log('\n🎊 Happy developing!');
   } catch (error) {
-    console.error('❌ Database seeding failed:', error);
+    console.error('\n❌ Database seeding encountered an error:', error);
+    console.error('💡 Please check your configuration and try again.');
     process.exit(1);
   }
 }

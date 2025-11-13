@@ -8,14 +8,9 @@ import {
 } from 'class-validator';
 import { Type } from 'class-transformer';
 
-// Shared enums
-export enum SortOrder {
-  ASC = 'ASC',
-  DESC = 'DESC',
-}
+import { SortOrder } from '../enums/sort-order.enum';
 
-// Base pagination DTO with common fields
-export class BasePaginationDto {
+export class PaginationDto {
   @IsOptional()
   @Type(() => Number)
   @IsNumber()
@@ -38,8 +33,7 @@ export class BasePaginationDto {
   sortOrder?: SortOrder = SortOrder.DESC;
 }
 
-// Shared interfaces
-export interface PaginationMeta {
+export interface Meta {
   page: number;
   limit: number;
   total: number;
@@ -52,15 +46,10 @@ export interface PaginationMeta {
 
 export interface PaginatedResponse<T> {
   data: T[];
-  meta: PaginationMeta;
+  meta: Meta;
 }
 
-// Utility function to create pagination meta
-export function createPaginationMeta(
-  page: number,
-  limit: number,
-  total: number,
-): PaginationMeta {
+export function createMeta(page: number, limit: number, total: number): Meta {
   const totalPages = Math.ceil(total / limit);
   const hasNextPage = page < totalPages;
   const hasPrevPage = page > 1;

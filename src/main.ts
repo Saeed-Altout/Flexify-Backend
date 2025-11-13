@@ -15,10 +15,8 @@ async function bootstrap() {
   });
 
   // Enable CORS
-  const frontendUrls = ['http://localhost:3001'];
-
   app.enableCors({
-    origin: frontendUrls,
+    origin: ['http://localhost:3001'],
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization', 'Accept-Language'],

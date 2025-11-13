@@ -1,11 +1,5 @@
-import {
-  IsString,
-  IsNumber,
-  IsOptional,
-  IsEnum,
-  IsArray,
-} from 'class-validator';
-import { Transform, Type } from 'class-transformer';
+import { IsString, IsNumber, IsEnum, IsOptional } from 'class-validator';
+import { Type } from 'class-transformer';
 
 export class EnvironmentVariables {
   @IsEnum(['development', 'production', 'test'])
@@ -15,7 +9,6 @@ export class EnvironmentVariables {
   @IsNumber()
   PORT: number;
 
-  // Database Configuration
   @IsString()
   DB_HOST: string;
 
@@ -27,12 +20,23 @@ export class EnvironmentVariables {
   DB_USER: string;
 
   @IsString()
-  DB_PASS: string;
+  DB_PASSWORD: string;
 
   @IsString()
   DB_NAME: string;
 
-  // JWT Configuration
+  @IsOptional()
+  @IsString()
+  DB_SCHEMA?: string;
+
+  @IsOptional()
+  @IsString()
+  DB_SSL_MODE?: string;
+
+  @IsOptional()
+  @IsString()
+  DB_URL?: string;
+
   @IsString()
   JWT_SECRET: string;
 
@@ -45,7 +49,6 @@ export class EnvironmentVariables {
   @IsString()
   JWT_REFRESH_EXPIRES_IN: string;
 
-  // Mail Configuration
   @IsString()
   MAIL_HOST: string;
 
@@ -62,14 +65,10 @@ export class EnvironmentVariables {
   @IsString()
   MAIL_FROM: string;
 
-  // CORS Configuration
   @IsString()
-  @Transform(({ value }) => value.split(',').map((url: string) => url.trim()))
-  @IsArray()
-  FRONTEND_URL: string[];
+  FRONTEND_URL: string;
 
-  // Base URL Configuration
-  @IsString()
   @IsOptional()
+  @IsString()
   BASE_URL?: string;
 }
