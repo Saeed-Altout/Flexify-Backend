@@ -1,4 +1,20 @@
 {
-  "auth.success": "Login successful",
-  "auth.invalid": "Invalid credentials"
+  "auth.login.success": "Login successful",
+  "auth.login.invalid": "Invalid email or password",
+  "auth.login.inactive": "Account is not active",
+  "auth.login.noPassword": "Invalid email or password",
+  "auth.logout.success": "Logged out successfully",
+  "auth.logout.error": "Failed to logout",
+  "auth.session.required": "Session token is required",
+  "auth.session.invalid": "Invalid or expired session",
+  "auth.session.expired": "Session has expired",
+  "auth.session.revoked": "Session has been revoked",
+  "auth.user.notFound": "User not found",
+  "auth.user.inactive": "User account is not active",
+  "auth.verify.success": "Session is valid",
+  "auth.me.success": "User information retrieved successfully",
+  "common.success": "Operation completed successfully",
+  "common.error": "An error occurred",
+  "common.unauthorized": "Unauthorized access",
+  "common.validation.error": "Validation failed"
 }

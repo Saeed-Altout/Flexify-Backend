@@ -1,4 +1,20 @@
 {
-  "auth.success": "تم تسجيل الدخول بنجاح",
-  "auth.invalid": "بيانات الدخول غير صحيحة"
+  "auth.login.success": "تم تسجيل الدخول بنجاح",
+  "auth.login.invalid": "البريد الإلكتروني أو كلمة المرور غير صحيحة",
+  "auth.login.inactive": "الحساب غير نشط",
+  "auth.login.noPassword": "البريد الإلكتروني أو كلمة المرور غير صحيحة",
+  "auth.logout.success": "تم تسجيل الخروج بنجاح",
+  "auth.logout.error": "فشل تسجيل الخروج",
+  "auth.session.required": "رمز الجلسة مطلوب",
+  "auth.session.invalid": "جلسة غير صالحة أو منتهية الصلاحية",
+  "auth.session.expired": "انتهت صلاحية الجلسة",
+  "auth.session.revoked": "تم إلغاء الجلسة",
+  "auth.user.notFound": "المستخدم غير موجود",
+  "auth.user.inactive": "حساب المستخدم غير نشط",
+  "auth.verify.success": "الجلسة صالحة",
+  "auth.me.success": "تم استرجاع معلومات المستخدم بنجاح",
+  "common.success": "تمت العملية بنجاح",
+  "common.error": "حدث خطأ",
+  "common.unauthorized": "وصول غير مصرح به",
+  "common.validation.error": "فشل التحقق"
 }
