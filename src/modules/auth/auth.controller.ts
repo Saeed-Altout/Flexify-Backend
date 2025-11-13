@@ -12,6 +12,11 @@ import {
 import type { Response, Request } from 'express';
 import { AuthService } from './auth.service';
 import { LoginDto } from './dtos/login.dto';
+import { RegisterDto } from './dtos/register.dto';
+import { QuickRegisterDto } from './dtos/quick-register.dto';
+import { ForgetPasswordDto } from './dtos/forget-password.dto';
+import { ResetPasswordDto } from './dtos/reset-password.dto';
+import { VerifyAccountDto } from './dtos/verify-account.dto';
 import { SessionGuard } from './guards/session.guard';
 import { CurrentUser } from './decorators/current-user.decorator';
 import { User } from '../users/entities/user.entity';
@@ -22,6 +27,90 @@ import { RequestUtil } from 'src/core/utils/request.util';
 @Controller('auth')
 export class AuthController {
   constructor(private readonly authService: AuthService) {}
+
+  @Post('register')
+  @HttpCode(HttpStatus.CREATED)
+  async register(
+    @Body() registerDto: RegisterDto,
+    @Req() req: Request,
+    @Res({ passthrough: true }) res: Response,
+  ) {
+    const lang = RequestUtil.getLanguage(req);
+    const user = await this.authService.register(registerDto, req);
+
+    // Auto-login after registration
+    const loginDto: LoginDto = {
+      email: registerDto.email,
+      password: registerDto.password,
+    };
+    const loginResult = await this.authService.login(loginDto, req);
+
+    // Set HttpOnly cookie
+    res.cookie('session_token', loginResult.session_token, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
+      path: '/',
+    });
+
+    return ResponseUtil.success(
+      {
+        user: {
+          id: user.id,
+          email: user.email,
+          first_name: user.first_name,
+          last_name: user.last_name,
+          role: user.role,
+          email_verified: user.email_verified,
+        },
+      },
+      TranslationUtil.translate('auth.register.success', lang),
+      lang,
+    );
+  }
+
+  @Post('quick-register')
+  @HttpCode(HttpStatus.CREATED)
+  async quickRegister(
+    @Body() quickRegisterDto: QuickRegisterDto,
+    @Req() req: Request,
+    @Res({ passthrough: true }) res: Response,
+  ) {
+    const lang = RequestUtil.getLanguage(req);
+    const user = await this.authService.quickRegister(quickRegisterDto, req);
+
+    // Auto-login after registration
+    const loginDto: LoginDto = {
+      email: quickRegisterDto.email,
+      password: quickRegisterDto.password,
+    };
+    const loginResult = await this.authService.login(loginDto, req);
+
+    // Set HttpOnly cookie
+    res.cookie('session_token', loginResult.session_token, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
+      path: '/',
+    });
+
+    return ResponseUtil.success(
+      {
+        user: {
+          id: user.id,
+          email: user.email,
+          first_name: user.first_name,
+          last_name: user.last_name,
+          role: user.role,
+          email_verified: user.email_verified,
+        },
+      },
+      TranslationUtil.translate('auth.register.success', lang),
+      lang,
+    );
+  }
 
   @Post('login')
   @HttpCode(HttpStatus.OK)
@@ -120,6 +209,86 @@ export class AuthController {
         },
       },
       TranslationUtil.translate('auth.verify.success', lang),
+      lang,
+    );
+  }
+
+  @Post('forget-password')
+  @HttpCode(HttpStatus.OK)
+  async forgetPassword(
+    @Body() forgetPasswordDto: ForgetPasswordDto,
+    @Req() req: Request,
+  ) {
+    const lang = RequestUtil.getLanguage(req);
+    await this.authService.forgetPassword(forgetPasswordDto, req);
+
+    return ResponseUtil.success(
+      undefined,
+      TranslationUtil.translate('auth.forgetPassword.success', lang),
+      lang,
+    );
+  }
+
+  @Post('reset-password')
+  @HttpCode(HttpStatus.OK)
+  async resetPassword(
+    @Body() resetPasswordDto: ResetPasswordDto,
+    @Req() req: Request,
+  ) {
+    const lang = RequestUtil.getLanguage(req);
+    await this.authService.resetPassword(resetPasswordDto, req);
+
+    return ResponseUtil.success(
+      undefined,
+      TranslationUtil.translate('auth.resetPassword.success', lang),
+      lang,
+    );
+  }
+
+  @Post('verify-account')
+  @HttpCode(HttpStatus.OK)
+  async verifyAccount(
+    @Body() verifyAccountDto: VerifyAccountDto,
+    @Req() req: Request,
+  ) {
+    const lang = RequestUtil.getLanguage(req);
+    await this.authService.verifyAccount(verifyAccountDto, req);
+
+    return ResponseUtil.success(
+      undefined,
+      TranslationUtil.translate('auth.verifyAccount.success', lang),
+      lang,
+    );
+  }
+
+  @Post('send-verification-code')
+  @HttpCode(HttpStatus.OK)
+  async sendVerificationCode(
+    @Body() body: { email: string },
+    @Req() req: Request,
+  ) {
+    const lang = RequestUtil.getLanguage(req);
+    await this.authService.sendVerificationCode(body.email, req);
+
+    return ResponseUtil.success(
+      undefined,
+      TranslationUtil.translate('auth.sendVerificationCode.success', lang),
+      lang,
+    );
+  }
+
+  @Post('resend-verification-code')
+  @HttpCode(HttpStatus.OK)
+  async resendVerificationCode(
+    @Body() body: { email: string },
+    @Req() req: Request,
+  ) {
+    const lang = RequestUtil.getLanguage(req);
+    await this.authService.resendVerificationCode(body.email, req);
+
+    return ResponseUtil.success(
+      undefined,
+      TranslationUtil.translate('auth.resendVerificationCode.success', lang),
       lang,
     );
   }

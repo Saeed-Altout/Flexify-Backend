@@ -10,6 +10,8 @@ import { AppService } from './app.service';
 import { AuthModule } from './modules/auth/auth.module';
 import { User } from './modules/users/entities/user.entity';
 import { Session } from './modules/auth/entities/session.entity';
+import { PasswordResetToken } from './modules/auth/entities/password-reset-token.entity';
+import { VerificationCode } from './modules/auth/entities/verification-code.entity';
 
 @Module({
   imports: [
@@ -30,7 +32,7 @@ import { Session } from './modules/auth/entities/session.entity';
         username: configService.get('DB_USER'),
         password: configService.get('DB_PASSWORD'),
         database: configService.get('DB_NAME'),
-        entities: [User, Session],
+        entities: [User, Session, PasswordResetToken, VerificationCode],
         synchronize: true,
         ssl:
           configService.get('DB_SSL_MODE') === 'require'
