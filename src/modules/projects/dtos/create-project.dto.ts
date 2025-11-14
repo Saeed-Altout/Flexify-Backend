@@ -31,27 +31,14 @@ export class ProjectTranslationDto {
   @IsString()
   @IsOptional()
   architecture?: string;
+
+  @IsArray()
+  @IsString({ each: true })
+  @IsOptional()
+  features?: string[];
 }
 
 export class CreateProjectDto {
-  @IsString()
-  @MinLength(1)
-  @MaxLength(255)
-  title: string;
-
-  @IsString()
-  @MinLength(1)
-  @MaxLength(255)
-  slug: string;
-
-  @IsString()
-  @MinLength(1)
-  summary: string;
-
-  @IsString()
-  @MinLength(1)
-  description: string;
-
   @IsArray()
   @IsString({ each: true })
   @ArrayMinSize(1)
@@ -61,35 +48,6 @@ export class CreateProjectDto {
   @MinLength(1)
   @MaxLength(100)
   role: string;
-
-  @IsArray()
-  @IsString({ each: true })
-  @IsOptional()
-  responsibilities?: string[];
-
-  @IsString()
-  @IsOptional()
-  architecture?: string;
-
-  @IsArray()
-  @IsString({ each: true })
-  @IsOptional()
-  features?: string[];
-
-  @IsArray()
-  @IsString({ each: true })
-  @IsOptional()
-  challenges?: string[];
-
-  @IsArray()
-  @IsString({ each: true })
-  @IsOptional()
-  solutions?: string[];
-
-  @IsArray()
-  @IsString({ each: true })
-  @IsOptional()
-  lessons?: string[];
 
   @IsUrl()
   @IsOptional()
@@ -102,10 +60,6 @@ export class CreateProjectDto {
   @IsUrl()
   @IsOptional()
   live_demo_url?: string;
-
-  @IsUrl()
-  @IsOptional()
-  video_demo_url?: string;
 
   @IsString()
   @IsOptional()
@@ -123,7 +77,7 @@ export class CreateProjectDto {
   @IsArray()
   @ValidateNested({ each: true })
   @Type(() => ProjectTranslationDto)
-  @IsOptional()
-  translations?: ProjectTranslationDto[];
+  @ArrayMinSize(1)
+  translations: ProjectTranslationDto[];
 }
 

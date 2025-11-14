@@ -38,9 +38,9 @@ export class ProjectsService {
   ) {
     const lang = RequestUtil.getLanguage(req);
 
-    // Check if slug already exists
+    // Check if slug already exists (including soft-deleted projects)
     const existingProject = await this.projectRepository.findOne({
-      where: { slug: createProjectDto.slug },
+      where: { slug: createProjectDto.slug, deleted_at: IsNull() },
     });
 
     if (existingProject) {
@@ -54,20 +54,62 @@ export class ProjectsService {
       user_id: userId,
     });
 
-    const savedProject = await this.projectRepository.save(project);
+    try {
+      const savedProject = await this.projectRepository.save(project);
 
-    // Create translations if provided
-    if (createProjectDto.translations && createProjectDto.translations.length > 0) {
-      const translations = createProjectDto.translations.map((t) =>
-        this.translationRepository.create({
-          ...t,
-          project_id: savedProject.id,
-        }),
-      );
-      await this.translationRepository.save(translations);
+      // Create translations if provided
+      if (
+        createProjectDto.translations &&
+        createProjectDto.translations.length > 0
+      ) {
+        // Filter out translations with empty required fields
+        const validTranslations = createProjectDto.translations.filter(
+          (t) => t.title && t.summary && t.description,
+        );
+
+        if (validTranslations.length > 0) {
+          // Use upsert logic to avoid duplicate key errors
+          for (const translationDto of validTranslations) {
+            let translation = await this.translationRepository.findOne({
+              where: {
+                project_id: savedProject.id,
+                language: translationDto.language,
+              },
+            });
+
+            if (translation) {
+              // Update existing translation
+              Object.assign(translation, translationDto);
+              await this.translationRepository.save(translation);
+            } else {
+              // Create new translation
+              translation = this.translationRepository.create({
+                ...translationDto,
+                project_id: savedProject.id,
+              });
+              await this.translationRepository.save(translation);
+            }
+          }
+        }
+      }
+
+      return this.findOne(savedProject.id, req);
+    } catch (error: any) {
+      // Handle database constraint violations (e.g., duplicate slug)
+      if (error.code === '23505' || error.code === '23503') {
+        // PostgreSQL unique constraint violation
+        if (
+          error.constraint?.includes('slug') ||
+          error.detail?.includes('slug')
+        ) {
+          throw new BadRequestException(
+            TranslationUtil.translate('projects.slug.exists', lang),
+          );
+        }
+      }
+      // Re-throw other errors
+      throw error;
     }
-
-    return this.findOne(savedProject.id, req);
   }
 
   async findAll(queryDto: QueryProjectsDto, req: Request) {
@@ -96,7 +138,7 @@ export class ProjectsService {
 
     if (search) {
       queryBuilder.andWhere(
-        '(project.title ILIKE :search OR project.summary ILIKE :search)',
+        '(translations.title ILIKE :search OR translations.summary ILIKE :search OR translations.description ILIKE :search)',
         { search: `%${search}%` },
       );
     }
@@ -145,49 +187,15 @@ export class ProjectsService {
       );
     }
 
-    // Get translation for current language
-    const translation = project.translations.find((t) => t.language === lang);
-    if (translation) {
-      project.title = translation.title;
-      project.summary = translation.summary;
-      project.description = translation.description;
-      if (translation.architecture) {
-        project.architecture = translation.architecture;
-      }
-    }
-
     return project;
   }
 
-  async findBySlug(slug: string, req: Request) {
-    const lang = RequestUtil.getLanguage(req);
-
-    const project = await this.projectRepository.findOne({
-      where: { slug, deleted_at: IsNull() },
-      relations: ['user', 'translations', 'ratings', 'likes'],
-    });
-
-    if (!project) {
-      throw new NotFoundException(
-        TranslationUtil.translate('projects.notFound', lang),
-      );
-    }
-
-    // Get translation for current language
-    const translation = project.translations.find((t) => t.language === lang);
-    if (translation) {
-      project.title = translation.title;
-      project.summary = translation.summary;
-      project.description = translation.description;
-      if (translation.architecture) {
-        project.architecture = translation.architecture;
-      }
-    }
-
-    return project;
-  }
-
-  async update(id: string, updateProjectDto: UpdateProjectDto, userId: string, req: Request) {
+  async update(
+    id: string,
+    updateProjectDto: UpdateProjectDto,
+    userId: string,
+    req: Request,
+  ) {
     const lang = RequestUtil.getLanguage(req);
 
     const project = await this.projectRepository.findOne({
@@ -206,46 +214,69 @@ export class ProjectsService {
       );
     }
 
-    // Check slug uniqueness if changed
-    if (updateProjectDto.slug && updateProjectDto.slug !== project.slug) {
-      const existingProject = await this.projectRepository.findOne({
-        where: { slug: updateProjectDto.slug },
-      });
-
-      if (existingProject) {
-        throw new BadRequestException(
-          TranslationUtil.translate('projects.slug.exists', lang),
-        );
-      }
-    }
-
     Object.assign(project, updateProjectDto);
-    await this.projectRepository.save(project);
 
-    // Update translations if provided
-    if (updateProjectDto.translations && updateProjectDto.translations.length > 0) {
-      for (const translationDto of updateProjectDto.translations) {
-        let translation = await this.translationRepository.findOne({
-          where: {
-            project_id: id,
-            language: translationDto.language,
-          },
-        });
+    try {
+      await this.projectRepository.save(project);
 
-        if (translation) {
-          Object.assign(translation, translationDto);
-          await this.translationRepository.save(translation);
-        } else {
-          translation = this.translationRepository.create({
-            ...translationDto,
-            project_id: id,
+      // Update translations if provided
+      if (
+        updateProjectDto.translations &&
+        updateProjectDto.translations.length > 0
+      ) {
+        for (const translationDto of updateProjectDto.translations) {
+          let translation = await this.translationRepository.findOne({
+            where: {
+              project_id: id,
+              language: translationDto.language,
+            },
           });
-          await this.translationRepository.save(translation);
+
+          if (translation) {
+            // Update existing translation
+            Object.assign(translation, {
+              title: translationDto.title,
+              summary: translationDto.summary,
+              description: translationDto.description,
+              architecture: translationDto.architecture || null,
+              features: translationDto.features || [],
+            });
+            await this.translationRepository.save(translation);
+          } else {
+            // Create new translation only if it doesn't exist
+            translation = this.translationRepository.create({
+              project: { id } as any,
+              language: translationDto.language,
+              title: translationDto.title,
+              summary: translationDto.summary,
+              description: translationDto.description,
+              architecture: translationDto.architecture || null,
+              features: translationDto.features || [],
+            });
+            await this.translationRepository.save(translation);
+          }
         }
       }
-    }
 
-    return this.findOne(id, req);
+      return this.findOne(id, req);
+    } catch (error: any) {
+      // Handle database constraint violations
+      if (error.code === '23505' || error.code === '23503') {
+        // Handle translation duplicate key errors
+        if (
+          error.constraint?.includes('project_translations') ||
+          error.detail?.includes('project_translations') ||
+          error.table === 'project_translations'
+        ) {
+          throw new BadRequestException(
+            TranslationUtil.translate('projects.translation.exists', lang) ||
+              'Translation already exists for this language',
+          );
+        }
+      }
+      // Re-throw other errors
+      throw error;
+    }
   }
 
   async remove(id: string, userId: string, req: Request) {
@@ -378,4 +409,3 @@ export class ProjectsService {
     return rating ? rating.rating : null;
   }
 }
-

@@ -40,6 +40,9 @@ export class ProjectTranslation {
   @Column({ type: 'text', nullable: true })
   architecture: string;
 
+  @Column({ type: 'jsonb', default: [] })
+  features: string[];
+
   @CreateDateColumn({ type: 'timestamp' })
   created_at: Date;
 

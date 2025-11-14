@@ -92,35 +92,6 @@ export class ProjectsController {
     );
   }
 
-  @Get('slug/:slug')
-  async findBySlug(@Param('slug') slug: string, @Req() req: Request) {
-    const lang = RequestUtil.getLanguage(req);
-    const project = await this.projectsService.findBySlug(slug, req);
-
-    // Check if user is authenticated and get their like/rating status
-    let userLike = false;
-    let userRating: number | null = null;
-
-    const user = (req as any).user;
-    if (user?.id) {
-      userLike = await this.projectsService.checkUserLike(project.id, user.id);
-      userRating = await this.projectsService.checkUserRating(
-        project.id,
-        user.id,
-      );
-    }
-
-    return ResponseUtil.success(
-      {
-        ...project,
-        user_liked: userLike,
-        user_rating: userRating,
-      },
-      TranslationUtil.translate('projects.found', lang),
-      lang,
-    );
-  }
-
   @Patch(':id')
   @UseGuards(SessionGuard)
   async update(

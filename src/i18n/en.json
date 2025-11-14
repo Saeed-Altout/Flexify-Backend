@@ -38,6 +38,7 @@
   "projects.notFound": "Project not found",
   "projects.forbidden": "You don't have permission to perform this action",
   "projects.slug.exists": "A project with this slug already exists",
+  "projects.translation.exists": "Translation already exists for this language",
   "projects.list": "Projects retrieved successfully",
   "projects.found": "Project retrieved successfully",
   "projects.rated": "Project rated successfully",
