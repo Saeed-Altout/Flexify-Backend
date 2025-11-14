@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { ProjectsService } from './projects.service';
 import { ProjectsController } from './projects.controller';
+import { ProjectsRepository } from './repositories/projects.repository';
 import { Project } from './entities/project.entity';
 import { ProjectTranslation } from './entities/project-translation.entity';
 import { ProjectRating } from './entities/project-rating.entity';
@@ -19,7 +20,7 @@ import { AuthModule } from '../auth/auth.module';
     AuthModule,
   ],
   controllers: [ProjectsController],
-  providers: [ProjectsService],
+  providers: [ProjectsService, ProjectsRepository],
   exports: [ProjectsService],
 })
 export class ProjectsModule {}

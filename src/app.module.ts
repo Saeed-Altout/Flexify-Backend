@@ -5,8 +5,6 @@ import { ThrottlerModule } from '@nestjs/throttler';
 
 import { EnvironmentVariables } from './config/env.validation';
 
-import { AppController } from './app.controller';
-import { AppService } from './app.service';
 import { AuthModule } from './modules/auth/auth.module';
 import { ProjectsModule } from './modules/projects/projects.module';
 import { SeedersModule } from './seeders/seeders.module';
@@ -77,7 +75,5 @@ import { ProjectLike } from './modules/projects/entities/project-like.entity';
     ProjectsModule,
     SeedersModule,
   ],
-  controllers: [AppController],
-  providers: [AppService],
 })
 export class AppModule {}

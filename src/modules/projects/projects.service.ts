@@ -3,116 +3,115 @@ import {
   NotFoundException,
   BadRequestException,
   ForbiddenException,
+  Logger,
 } from '@nestjs/common';
-import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, Like, In, IsNull } from 'typeorm';
-import { Project } from './entities/project.entity';
-import { ProjectTranslation } from './entities/project-translation.entity';
-import { ProjectRating } from './entities/project-rating.entity';
-import { ProjectLike } from './entities/project-like.entity';
+import { Request } from 'express';
+import { ProjectsRepository } from './repositories/projects.repository';
+import { ProjectMapper } from './mappers/project.mapper';
 import { CreateProjectDto } from './dtos/create-project.dto';
 import { UpdateProjectDto } from './dtos/update-project.dto';
 import { RateProjectDto } from './dtos/rate-project.dto';
 import { QueryProjectsDto } from './dtos/query-projects.dto';
 import { RequestUtil } from 'src/core/utils/request.util';
 import { TranslationUtil } from 'src/core/utils/translations';
-import type { Request } from 'express';
+import { Project } from './entities/project.entity';
+import { ProjectRating } from './entities/project-rating.entity';
+import { ProjectLike } from './entities/project-like.entity';
 
+/**
+ * Projects Service
+ * Contains business logic only, delegates data access to repository
+ * Follows DDD principles with clean separation of concerns
+ */
 @Injectable()
 export class ProjectsService {
-  constructor(
-    @InjectRepository(Project)
-    private readonly projectRepository: Repository<Project>,
-    @InjectRepository(ProjectTranslation)
-    private readonly translationRepository: Repository<ProjectTranslation>,
-    @InjectRepository(ProjectRating)
-    private readonly ratingRepository: Repository<ProjectRating>,
-    @InjectRepository(ProjectLike)
-    private readonly likeRepository: Repository<ProjectLike>,
-  ) {}
+  private readonly logger = new Logger(ProjectsService.name);
 
+  constructor(private readonly projectsRepository: ProjectsRepository) {}
+
+  /**
+   * Create a new project
+   */
   async create(
     createProjectDto: CreateProjectDto,
     userId: string,
     req: Request,
-  ) {
+  ): Promise<Project> {
     const lang = RequestUtil.getLanguage(req);
-
-    // Check if slug already exists (including soft-deleted projects)
-    const existingProject = await this.projectRepository.findOne({
-      where: { slug: createProjectDto.slug, deleted_at: IsNull() },
-    });
-
-    if (existingProject) {
-      throw new BadRequestException(
-        TranslationUtil.translate('projects.slug.exists', lang),
-      );
-    }
-
-    const project = this.projectRepository.create({
-      ...createProjectDto,
-      user_id: userId,
-    });
+    this.logger.log(`Creating project for user ${userId}`);
 
     try {
-      const savedProject = await this.projectRepository.save(project);
+      // Map DTO to entity
+      const projectData = ProjectMapper.toEntity(createProjectDto, userId);
+      const project = await this.projectsRepository.create(projectData);
 
-      // Create translations if provided
-      if (
-        createProjectDto.translations &&
-        createProjectDto.translations.length > 0
-      ) {
-        // Filter out translations with empty required fields
+      // Create translations
+      if (createProjectDto.translations?.length) {
         const validTranslations = createProjectDto.translations.filter(
           (t) => t.title && t.summary && t.description,
         );
 
-        if (validTranslations.length > 0) {
-          // Use upsert logic to avoid duplicate key errors
-          for (const translationDto of validTranslations) {
-            let translation = await this.translationRepository.findOne({
-              where: {
-                project_id: savedProject.id,
-                language: translationDto.language,
-              },
-            });
+        for (const translationDto of validTranslations) {
+          const existingTranslation =
+            await this.projectsRepository.findTranslation(
+              project.id,
+              translationDto.language,
+            );
 
-            if (translation) {
-              // Update existing translation
-              Object.assign(translation, translationDto);
-              await this.translationRepository.save(translation);
-            } else {
-              // Create new translation
-              translation = this.translationRepository.create({
-                ...translationDto,
-                project_id: savedProject.id,
-              });
-              await this.translationRepository.save(translation);
-            }
+          const translationData = ProjectMapper.translationToEntity(
+            translationDto,
+            project.id,
+          );
+
+          if (existingTranslation) {
+            await this.projectsRepository.updateTranslation(
+              existingTranslation.id,
+              translationData,
+            );
+          } else {
+            await this.projectsRepository.createTranslation(translationData);
           }
         }
       }
 
-      return this.findOne(savedProject.id, req);
+      return this.findOne(project.id, req);
     } catch (error: any) {
-      // Handle database constraint violations (e.g., duplicate slug)
+      this.logger.error(
+        `Error creating project: ${error.message}`,
+        error.stack,
+      );
+
+      // Handle database constraint violations
       if (error.code === '23505' || error.code === '23503') {
-        // PostgreSQL unique constraint violation
         if (
-          error.constraint?.includes('slug') ||
-          error.detail?.includes('slug')
+          error.constraint?.includes('project_translations') ||
+          error.detail?.includes('project_translations')
         ) {
           throw new BadRequestException(
-            TranslationUtil.translate('projects.slug.exists', lang),
+            TranslationUtil.translate('projects.translation.exists', lang),
           );
         }
       }
-      // Re-throw other errors
+
       throw error;
     }
   }
 
-  async findAll(queryDto: QueryProjectsDto, req: Request) {
+  /**
+   * Find all projects with pagination and filters
+   */
+  async findAll(
+    queryDto: QueryProjectsDto,
+    req: Request,
+  ): Promise<{
+    data: Project[];
+    meta: {
+      total: number;
+      page: number;
+      limit: number;
+      totalPages: number;
+    };
+  }> {
     const lang = RequestUtil.getLanguage(req);
     const {
       search,
@@ -124,43 +123,16 @@ export class ProjectsService {
       order = 'DESC',
     } = queryDto;
 
-    const queryBuilder = this.projectRepository
-      .createQueryBuilder('project')
-      .leftJoinAndSelect('project.user', 'user')
-      .leftJoinAndSelect('project.translations', 'translations')
-      .where('project.deleted_at IS NULL');
-
-    if (is_published !== undefined) {
-      queryBuilder.andWhere('project.is_published = :is_published', {
-        is_published,
-      });
-    }
-
-    if (search) {
-      queryBuilder.andWhere(
-        '(translations.title ILIKE :search OR translations.summary ILIKE :search OR translations.description ILIKE :search)',
-        { search: `%${search}%` },
-      );
-    }
-
-    if (tech_stack) {
-      queryBuilder.andWhere('project.tech_stack @> :tech_stack', {
-        tech_stack: JSON.stringify([tech_stack]),
-      });
-    }
-
-    // Get current language translation
-    const currentLang = lang;
-    queryBuilder.andWhere(
-      '(translations.language = :lang OR translations.language IS NULL)',
-      { lang: currentLang },
-    );
-
-    queryBuilder.orderBy(`project.${sort_by}`, order);
-    queryBuilder.skip((page - 1) * limit);
-    queryBuilder.take(limit);
-
-    const [projects, total] = await queryBuilder.getManyAndCount();
+    const [projects, total] = await this.projectsRepository.findAll({
+      search,
+      techStack: tech_stack,
+      isPublished: is_published,
+      page,
+      limit,
+      sortBy: sort_by,
+      order: order as 'ASC' | 'DESC',
+      language: lang,
+    });
 
     return {
       data: projects,
@@ -173,13 +145,12 @@ export class ProjectsService {
     };
   }
 
-  async findOne(id: string, req: Request) {
+  /**
+   * Find project by ID
+   */
+  async findOne(id: string, req: Request): Promise<Project> {
     const lang = RequestUtil.getLanguage(req);
-
-    const project = await this.projectRepository.findOne({
-      where: { id, deleted_at: IsNull() },
-      relations: ['user', 'translations', 'ratings', 'likes'],
-    });
+    const project = await this.projectsRepository.findById(id);
 
     if (!project) {
       throw new NotFoundException(
@@ -190,17 +161,19 @@ export class ProjectsService {
     return project;
   }
 
+  /**
+   * Update project
+   */
   async update(
     id: string,
     updateProjectDto: UpdateProjectDto,
     userId: string,
     req: Request,
-  ) {
+  ): Promise<Project> {
     const lang = RequestUtil.getLanguage(req);
+    this.logger.log(`Updating project ${id} for user ${userId}`);
 
-    const project = await this.projectRepository.findOne({
-      where: { id, deleted_at: IsNull() },
-    });
+    const project = await this.projectsRepository.findById(id);
 
     if (!project) {
       throw new NotFoundException(
@@ -208,83 +181,100 @@ export class ProjectsService {
       );
     }
 
-    if (project.user_id !== userId) {
+    // Check ownership
+    const isOwner = await this.projectsRepository.isOwner(id, userId);
+    if (!isOwner) {
       throw new ForbiddenException(
         TranslationUtil.translate('projects.forbidden', lang),
       );
     }
 
-    Object.assign(project, updateProjectDto);
-
     try {
-      await this.projectRepository.save(project);
+      // Update main project fields
+      const updateData = ProjectMapper.toUpdateEntity(updateProjectDto);
+      if (Object.keys(updateData).length > 0) {
+        await this.projectsRepository.update(id, updateData);
+      }
 
-      // Update translations if provided
-      if (
-        updateProjectDto.translations &&
-        updateProjectDto.translations.length > 0
-      ) {
+      // Update translations
+      if (updateProjectDto.translations?.length) {
         for (const translationDto of updateProjectDto.translations) {
-          let translation = await this.translationRepository.findOne({
-            where: {
-              project_id: id,
-              language: translationDto.language,
-            },
-          });
+          const existingTranslation =
+            await this.projectsRepository.findTranslation(
+              id,
+              translationDto.language,
+            );
 
-          if (translation) {
-            // Update existing translation
-            Object.assign(translation, {
-              title: translationDto.title,
-              summary: translationDto.summary,
-              description: translationDto.description,
-              architecture: translationDto.architecture || null,
-              features: translationDto.features || [],
-            });
-            await this.translationRepository.save(translation);
+          const translationData =
+            ProjectMapper.translationToUpdateEntity(translationDto);
+
+          if (existingTranslation) {
+            await this.projectsRepository.updateTranslation(
+              existingTranslation.id,
+              translationData,
+            );
           } else {
-            // Create new translation only if it doesn't exist
-            translation = this.translationRepository.create({
-              project: { id } as any,
-              language: translationDto.language,
-              title: translationDto.title,
-              summary: translationDto.summary,
-              description: translationDto.description,
-              architecture: translationDto.architecture || null,
-              features: translationDto.features || [],
-            });
-            await this.translationRepository.save(translation);
+            // For new translations, ensure all required fields are present
+            if (
+              translationDto.title &&
+              translationDto.summary &&
+              translationDto.description
+            ) {
+              const newTranslationData = ProjectMapper.translationToEntity(
+                {
+                  language: translationDto.language,
+                  title: translationDto.title,
+                  summary: translationDto.summary,
+                  description: translationDto.description,
+                  architecture: translationDto.architecture,
+                  features: translationDto.features,
+                },
+                id,
+              );
+              await this.projectsRepository.createTranslation(
+                newTranslationData,
+              );
+            }
           }
         }
       }
 
       return this.findOne(id, req);
     } catch (error: any) {
-      // Handle database constraint violations
+      this.logger.error(
+        `Error updating project: ${error.message}`,
+        error.stack,
+      );
+
       if (error.code === '23505' || error.code === '23503') {
-        // Handle translation duplicate key errors
         if (
           error.constraint?.includes('project_translations') ||
-          error.detail?.includes('project_translations') ||
-          error.table === 'project_translations'
+          error.detail?.includes('project_translations')
         ) {
           throw new BadRequestException(
-            TranslationUtil.translate('projects.translation.exists', lang) ||
-              'Translation already exists for this language',
+            TranslationUtil.translate('projects.translation.exists', lang),
           );
         }
       }
-      // Re-throw other errors
+
       throw error;
     }
   }
 
-  async remove(id: string, userId: string, req: Request) {
+  /**
+   * Delete project (soft delete)
+   */
+  async remove(
+    id: string,
+    userId: string,
+    req: Request,
+  ): Promise<{
+    message: string;
+  }> {
     const lang = RequestUtil.getLanguage(req);
+    this.logger.log(`Deleting project ${id} for user ${userId}`);
 
-    const project = await this.projectRepository.findOne({
-      where: { id, deleted_at: IsNull() },
-    });
+    const project = await this.projectsRepository.findById(id);
 
     if (!project) {
       throw new NotFoundException(
@@ -292,27 +282,33 @@ export class ProjectsService {
       );
     }
 
-    if (project.user_id !== userId) {
+    const isOwner = await this.projectsRepository.isOwner(id, userId);
+    if (!isOwner) {
       throw new ForbiddenException(
         TranslationUtil.translate('projects.forbidden', lang),
       );
     }
 
-    await this.projectRepository.softDelete(id);
-    return { message: TranslationUtil.translate('projects.deleted', lang) };
+    await this.projectsRepository.softDelete(id);
+
+    return {
+      message: TranslationUtil.translate('projects.deleted', lang),
+    };
   }
 
+  /**
+   * Rate a project
+   */
   async rateProject(
-    projectId: string,
+    id: string,
     userId: string,
     rateDto: RateProjectDto,
     req: Request,
-  ) {
+  ): Promise<{ rating: ProjectRating; message: string }> {
     const lang = RequestUtil.getLanguage(req);
+    this.logger.log(`Rating project ${id} by user ${userId}`);
 
-    const project = await this.projectRepository.findOne({
-      where: { id: projectId, deleted_at: IsNull() },
-    });
+    const project = await this.projectsRepository.findById(id);
 
     if (!project) {
       throw new NotFoundException(
@@ -321,43 +317,53 @@ export class ProjectsService {
     }
 
     // Check if user already rated
-    let rating = await this.ratingRepository.findOne({
-      where: { project_id: projectId, user_id: userId },
-    });
+    const existingRating = await this.projectsRepository.findUserRating(
+      id,
+      userId,
+    );
 
-    if (rating) {
-      rating.rating = rateDto.rating;
-      await this.ratingRepository.save(rating);
+    let rating: ProjectRating;
+
+    if (existingRating) {
+      // Update existing rating
+      rating = await this.projectsRepository.updateRating(existingRating.id, {
+        rating: rateDto.rating,
+      });
     } else {
-      rating = this.ratingRepository.create({
-        project_id: projectId,
+      // Create new rating
+      rating = await this.projectsRepository.createRating({
+        project: { id } as any,
         user_id: userId,
         rating: rateDto.rating,
       });
-      await this.ratingRepository.save(rating);
-      project.total_ratings += 1;
     }
 
     // Recalculate average rating
-    const ratings = await this.ratingRepository.find({
-      where: { project_id: projectId },
+    const { average, total } =
+      await this.projectsRepository.calculateAverageRating(id);
+    await this.projectsRepository.update(id, {
+      average_rating: average,
+      total_ratings: total,
     });
-    const sum = ratings.reduce((acc, r) => acc + r.rating, 0);
-    project.average_rating = sum / ratings.length;
-    await this.projectRepository.save(project);
 
     return {
+      rating,
       message: TranslationUtil.translate('projects.rated', lang),
-      rating: project.average_rating,
     };
   }
 
-  async likeProject(projectId: string, userId: string, req: Request) {
+  /**
+   * Like/Unlike a project
+   */
+  async likeProject(
+    id: string,
+    userId: string,
+    req: Request,
+  ): Promise<{ liked: boolean; message: string }> {
     const lang = RequestUtil.getLanguage(req);
+    this.logger.log(`Toggling like for project ${id} by user ${userId}`);
 
-    const project = await this.projectRepository.findOne({
-      where: { id: projectId, deleted_at: IsNull() },
-    });
+    const project = await this.projectsRepository.findById(id);
 
     if (!project) {
       throw new NotFoundException(
@@ -365,47 +371,53 @@ export class ProjectsService {
       );
     }
 
-    // Check if user already liked
-    const existingLike = await this.likeRepository.findOne({
-      where: { project_id: projectId, user_id: userId },
-    });
+    const existingLike = await this.projectsRepository.findUserLike(id, userId);
 
     if (existingLike) {
       // Unlike
-      await this.likeRepository.remove(existingLike);
-      project.total_likes -= 1;
-      await this.projectRepository.save(project);
+      await this.projectsRepository.deleteLike(id, userId);
+      const totalLikes = await this.projectsRepository.countLikes(id);
+      await this.projectsRepository.update(id, { total_likes: totalLikes });
+
       return {
-        message: TranslationUtil.translate('projects.unliked', lang),
         liked: false,
+        message: TranslationUtil.translate('projects.unliked', lang),
       };
     } else {
       // Like
-      const like = this.likeRepository.create({
-        project_id: projectId,
+      await this.projectsRepository.createLike({
+        project: { id } as any,
         user_id: userId,
       });
-      await this.likeRepository.save(like);
-      project.total_likes += 1;
-      await this.projectRepository.save(project);
+      const totalLikes = await this.projectsRepository.countLikes(id);
+      await this.projectsRepository.update(id, { total_likes: totalLikes });
+
       return {
-        message: TranslationUtil.translate('projects.liked', lang),
         liked: true,
+        message: TranslationUtil.translate('projects.liked', lang),
       };
     }
   }
 
+  /**
+   * Check if user liked project
+   */
   async checkUserLike(projectId: string, userId: string): Promise<boolean> {
-    const like = await this.likeRepository.findOne({
-      where: { project_id: projectId, user_id: userId },
-    });
+    const like = await this.projectsRepository.findUserLike(projectId, userId);
     return !!like;
   }
 
-  async checkUserRating(projectId: string, userId: string) {
-    const rating = await this.ratingRepository.findOne({
-      where: { project_id: projectId, user_id: userId },
-    });
-    return rating ? rating.rating : null;
+  /**
+   * Check user rating for project
+   */
+  async checkUserRating(
+    projectId: string,
+    userId: string,
+  ): Promise<number | null> {
+    const rating = await this.projectsRepository.findUserRating(
+      projectId,
+      userId,
+    );
+    return rating?.rating || null;
   }
 }
