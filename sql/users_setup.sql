@@ -267,4 +267,5 @@ CREATE POLICY "Service role manages sessions"
 -- 4. Adjust indexes based on your query patterns
 -- 5. Consider adding more constraints or validations as needed
 -- 6. Set up cron jobs in Supabase to clean expired sessions/tokens regularly
+-- 7. For avatar storage setup, see: storage_setup.sql
 
