@@ -1,21 +1,12 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
-import { TypeOrmModule } from '@nestjs/typeorm';
 import { ThrottlerModule } from '@nestjs/throttler';
 
 import { EnvironmentVariables } from './config/env.validation';
+import { SupabaseModule } from './core/lib/supabase/supabase.module';
 
 import { AuthModule } from './modules/auth/auth.module';
-import { ProjectsModule } from './modules/projects/projects.module';
-import { SeedersModule } from './seeders/seeders.module';
-import { User } from './modules/users/entities/user.entity';
-import { Session } from './modules/auth/entities/session.entity';
-import { PasswordResetToken } from './modules/auth/entities/password-reset-token.entity';
-import { VerificationCode } from './modules/auth/entities/verification-code.entity';
-import { Project } from './modules/projects/entities/project.entity';
-import { ProjectTranslation } from './modules/projects/entities/project-translation.entity';
-import { ProjectRating } from './modules/projects/entities/project-rating.entity';
-import { ProjectLike } from './modules/projects/entities/project-like.entity';
+import { UsersModule } from './modules/users/users.module';
 
 @Module({
   imports: [
@@ -27,34 +18,7 @@ import { ProjectLike } from './modules/projects/entities/project-like.entity';
         return validatedConfig;
       },
     }),
-    TypeOrmModule.forRootAsync({
-      imports: [ConfigModule],
-      useFactory: (configService: ConfigService) => ({
-        type: 'postgres',
-        host: configService.get('DB_HOST'),
-        port: parseInt(configService.get('DB_PORT') || '5432', 10),
-        username: configService.get('DB_USER'),
-        password: configService.get('DB_PASSWORD'),
-        database: configService.get('DB_NAME'),
-        entities: [
-          User,
-          Session,
-          PasswordResetToken,
-          VerificationCode,
-          Project,
-          ProjectTranslation,
-          ProjectRating,
-          ProjectLike,
-        ],
-        synchronize: true,
-        ssl:
-          configService.get('DB_SSL_MODE') === 'require'
-            ? { rejectUnauthorized: false }
-            : false,
-        logging: configService.get('NODE_ENV') === 'development',
-      }),
-      inject: [ConfigService],
-    }),
+    SupabaseModule,
     ThrottlerModule.forRootAsync({
       imports: [ConfigModule],
       useFactory: (configService: ConfigService) => [
@@ -72,8 +36,7 @@ import { ProjectLike } from './modules/projects/entities/project-like.entity';
       inject: [ConfigService],
     }),
     AuthModule,
-    ProjectsModule,
-    SeedersModule,
+    UsersModule,
   ],
 })
 export class AppModule {}

@@ -9,33 +9,12 @@ export class EnvironmentVariables {
   @IsNumber()
   PORT: number;
 
+  // Supabase Configuration
   @IsString()
-  DB_HOST: string;
-
-  @Type(() => Number)
-  @IsNumber()
-  DB_PORT: number;
+  SUPABASE_URL: string;
 
   @IsString()
-  DB_USER: string;
-
-  @IsString()
-  DB_PASSWORD: string;
-
-  @IsString()
-  DB_NAME: string;
-
-  @IsOptional()
-  @IsString()
-  DB_SCHEMA?: string;
-
-  @IsOptional()
-  @IsString()
-  DB_SSL_MODE?: string;
-
-  @IsOptional()
-  @IsString()
-  DB_URL?: string;
+  SUPABASE_SERVICE_ROLE_KEY: string;
 
   @IsString()
   JWT_SECRET: string;

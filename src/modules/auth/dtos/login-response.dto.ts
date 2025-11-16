@@ -2,8 +2,8 @@ export class LoginResponseDto {
   user: {
     id: string;
     email: string;
-    first_name: string;
-    last_name: string;
+    first_name: string | null;
+    last_name: string | null;
     role: string;
     email_verified: boolean;
   };

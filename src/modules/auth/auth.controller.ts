@@ -21,7 +21,7 @@ import { ResetPasswordDto } from './dtos/reset-password.dto';
 import { VerifyAccountDto } from './dtos/verify-account.dto';
 import { SessionGuard } from './guards/session.guard';
 import { CurrentUser } from './decorators/current-user.decorator';
-import { User } from '../users/entities/user.entity';
+import type { User } from '../users/types/user.type';
 import { ResponseUtil } from 'src/core/utils/response';
 import { TranslationUtil } from 'src/core/utils/translations';
 import { RequestUtil } from 'src/core/utils/request.util';
