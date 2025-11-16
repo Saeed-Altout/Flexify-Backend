@@ -162,7 +162,8 @@ export class UsersService extends BaseService {
    */
   private buildUpdateData(dto: UpdateUserDto): Record<string, any> {
     const updateData: Record<string, any> = {};
-    const fieldMapping: Record<keyof UpdateUserDto, string> = {
+    // Only map fields that are allowed to be updated (excludes password)
+    const fieldMapping: Partial<Record<keyof UpdateUserDto, string>> = {
       email: 'email',
       firstName: 'first_name',
       lastName: 'last_name',
@@ -174,8 +175,9 @@ export class UsersService extends BaseService {
     };
 
     for (const [key, value] of Object.entries(dto)) {
-      if (value !== undefined && fieldMapping[key as keyof UpdateUserDto]) {
-        updateData[fieldMapping[key as keyof UpdateUserDto]] = value;
+      const dbField = fieldMapping[key as keyof UpdateUserDto];
+      if (value !== undefined && dbField) {
+        updateData[dbField] = value;
       }
     }
 
