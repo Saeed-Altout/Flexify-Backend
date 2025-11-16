@@ -37,7 +37,9 @@ export class AuthService {
     return this.supabaseService.getClient();
   }
 
-  async register(registerDto: RegisterDto): Promise<IAuthResponse> {
+  async register(
+    registerDto: RegisterDto,
+  ): Promise<{ user: IAuthResponse['user']; verificationToken: string }> {
     const supabase = this.getClient();
     let userId: string | null = null;
 
@@ -52,11 +54,12 @@ export class AuthService {
 
       userId = user.id;
 
-      // Generate tokens
-      const tokens = await this.generateTokens(user.id);
+      // Don't generate tokens - user must verify email first
+      // Tokens will be provided after email verification and login
 
-      // Create email verification OTP
-      const otp = await this.createEmailVerificationToken(user.id);
+      // Create email verification token and OTP
+      const { verificationToken, otp } =
+        await this.createEmailVerificationToken(user.id);
 
       // Send welcome email with OTP - if this fails, rollback user creation
       await this.mailerService.sendWelcomeEmail(user.email, {
@@ -77,7 +80,7 @@ export class AuthService {
           isActive: user.isActive,
           role: user.role,
         },
-        tokens,
+        verificationToken,
       };
     } catch (error) {
       // Log the actual error for debugging
@@ -97,7 +100,6 @@ export class AuthService {
             .from('email_verification_tokens')
             .delete()
             .eq('user_id', userId);
-          await supabase.from('refresh_tokens').delete().eq('user_id', userId);
           console.log(`Rolled back user creation for user ID: ${userId}`);
         } catch (rollbackError) {
           console.error('Failed to rollback user creation:', rollbackError);
@@ -304,11 +306,12 @@ export class AuthService {
   async verifyEmail(verifyEmailDto: VerifyEmailDto): Promise<void> {
     const supabase = this.getClient();
 
-    // Find verification token (OTP)
+    // Find verification token by ID (verificationToken) and OTP
     const { data: tokenData, error } = await supabase
       .from('email_verification_tokens')
       .select('*')
-      .eq('token', verifyEmailDto.token)
+      .eq('id', verifyEmailDto.verificationToken)
+      .eq('token', verifyEmailDto.otp)
       .is('used_at', null)
       .single();
 
@@ -357,7 +360,7 @@ export class AuthService {
       .is('used_at', null);
 
     // Generate new OTP
-    const otp = await this.createEmailVerificationToken(user.id);
+    const { otp } = await this.createEmailVerificationToken(user.id);
 
     // Send verification email
     try {
@@ -434,7 +437,10 @@ export class AuthService {
     return resetLink;
   }
 
-  private async createEmailVerificationToken(userId: string): Promise<string> {
+  private async createEmailVerificationToken(userId: string): Promise<{
+    verificationToken: string;
+    otp: string;
+  }> {
     const supabase = this.getClient();
 
     // Generate 6-digit OTP
@@ -443,13 +449,25 @@ export class AuthService {
     const expiresAt = new Date();
     expiresAt.setMinutes(expiresAt.getMinutes() + 10); // 10 minutes
 
-    await supabase.from('email_verification_tokens').insert({
-      user_id: userId,
-      token: otp,
-      expires_at: expiresAt.toISOString(),
-    });
+    // Insert verification token record - the id will be used as verificationToken
+    const { data: insertedToken, error } = await supabase
+      .from('email_verification_tokens')
+      .insert({
+        user_id: userId,
+        token: otp,
+        expires_at: expiresAt.toISOString(),
+      })
+      .select('id')
+      .single();
 
-    return otp;
+    if (error || !insertedToken) {
+      throw new BadRequestException('Failed to create verification token');
+    }
+
+    return {
+      verificationToken: insertedToken.id,
+      otp,
+    };
   }
 
   private generateOTP(length: number = 6): string {

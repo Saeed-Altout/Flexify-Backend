@@ -2,6 +2,8 @@ import { IsString } from 'class-validator';
 
 export class VerifyEmailDto {
   @IsString()
-  token: string;
-}
+  verificationToken: string; // UUID token from registration
 
+  @IsString()
+  otp: string; // 6-digit OTP code
+}
