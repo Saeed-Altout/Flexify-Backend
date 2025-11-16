@@ -73,7 +73,9 @@ export class AuthService {
 
     // Send welcome email
     try {
-      const userName = updatedUser.name || registerDto.email;
+      const userName = updatedUser.first_name && updatedUser.last_name
+        ? `${updatedUser.first_name} ${updatedUser.last_name}`
+        : updatedUser.first_name || updatedUser.email;
       await this.mailerService.sendWelcomeEmail(updatedUser.email, userName);
     } catch (error) {
       console.error('Failed to send welcome email:', error);
@@ -93,8 +95,8 @@ export class AuthService {
       );
     }
 
-    // Check if user is active
-    if (!user.is_active) {
+    // Check if user is active (status === 'active')
+    if (user.status !== 'active') {
       throw new UnauthorizedException(
         TranslationUtil.translate('auth.login.inactive', lang),
       );
@@ -178,7 +180,7 @@ export class AuthService {
 
     // Get user to check if active
     const user = await this.supabase.getUserById(session.user_id);
-    if (!user || !user.is_active) {
+    if (!user || user.status !== 'active') {
       return null;
     }
 

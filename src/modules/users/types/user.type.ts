@@ -1,3 +1,6 @@
+export type UserStatus = 'active' | 'inactive' | 'suspended' | 'banned';
+export type UserRole = 'user' | 'admin' | 'moderator';
+
 export interface User {
   id: string;
   email: string;
@@ -6,8 +9,8 @@ export interface User {
   last_name?: string | null;
   phone?: string | null;
   avatar_url?: string | null;
-  role: string;
-  status: string;
+  role: UserRole;
+  status: UserStatus;
   email_verified: boolean;
   phone_verified: boolean;
   provider?: string | null;
@@ -16,9 +19,11 @@ export interface User {
   timezone?: string | null;
   metadata: Record<string, any>;
   settings: Record<string, any>;
-  last_login_at?: Date | null;
-  created_at: Date;
-  updated_at: Date;
-  deleted_at?: Date | null;
+  last_login_at?: Date | string | null;
+  created_at: Date | string;
+  updated_at: Date | string;
+  deleted_at?: Date | string | null;
+  // Computed property for backward compatibility
+  is_active?: boolean;
 }
 

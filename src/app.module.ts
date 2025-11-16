@@ -7,6 +7,7 @@ import { SupabaseModule } from './core/lib/supabase/supabase.module';
 
 import { AuthModule } from './modules/auth/auth.module';
 import { UsersModule } from './modules/users/users.module';
+import { ProjectsModule } from './modules/projects/projects.module';
 
 @Module({
   imports: [
@@ -37,6 +38,7 @@ import { UsersModule } from './modules/users/users.module';
     }),
     AuthModule,
     UsersModule,
+    ProjectsModule,
   ],
 })
 export class AppModule {}

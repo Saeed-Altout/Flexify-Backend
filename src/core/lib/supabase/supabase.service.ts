@@ -42,6 +42,16 @@ export class SupabaseService {
     }
   }
 
+  /**
+   * Map database user to User type with computed is_active property
+   */
+  private mapUserFromDb(data: any): User {
+    return {
+      ...data,
+      is_active: data.status === 'active',
+    };
+  }
+
   // =====================================================
   // USER OPERATIONS
   // =====================================================
@@ -58,13 +68,15 @@ export class SupabaseService {
         );
         // Track this user as verified in development mode
         this.devVerifiedUsers.add(email);
+        const nameParts = name.split(' ');
         return {
           id: 'dev-user-id',
           email,
-          name,
+          first_name: nameParts[0] || null,
+          last_name: nameParts.slice(1).join(' ') || null,
           password_hash: 'dev-hash',
-          role: 'USER',
-          is_active: true,
+          role: 'user',
+          status: 'active',
           email_verified: true, // Set to true in development mode for testing
           created_at: new Date().toISOString(),
           updated_at: new Date().toISOString(),
@@ -81,15 +93,21 @@ export class SupabaseService {
       const saltRounds = 12;
       const passwordHash = await bcrypt.hash(password, saltRounds);
 
+      // Parse name into first_name and last_name
+      const nameParts = name.split(' ');
+      const firstName = nameParts[0] || '';
+      const lastName = nameParts.slice(1).join(' ') || null;
+
       // Create user
       const { data, error } = await this.supabase
         .from('users')
         .insert({
           email,
-          name,
+          first_name: firstName,
+          last_name: lastName,
           password_hash: passwordHash,
-          role: 'USER',
-          is_active: true,
+          role: 'user',
+          status: 'active',
           email_verified: false,
         })
         .select()
@@ -105,7 +123,7 @@ export class SupabaseService {
       }
 
       this.logger.log(`Successfully created user: ${data.id}`);
-      return data;
+      return this.mapUserFromDb(data);
     } catch (error: any) {
       const errorMessage =
         error instanceof Error ? error.message : JSON.stringify(error);
@@ -126,13 +144,15 @@ export class SupabaseService {
         );
         // Track this user as verified in development mode
         this.devVerifiedUsers.add(email);
+        const nameParts = name.split(' ');
         return {
           id: 'dev-user-id',
           email,
-          name,
+          first_name: nameParts[0] || null,
+          last_name: nameParts.slice(1).join(' ') || null,
           password_hash: passwordHash,
-          role: 'USER',
-          is_active: true,
+          role: 'user',
+          status: 'active',
           email_verified: true,
           created_at: new Date().toISOString(),
           updated_at: new Date().toISOString(),
@@ -145,15 +165,21 @@ export class SupabaseService {
         throw new Error('User already exists with this email');
       }
 
+      // Parse name into first_name and last_name
+      const nameParts = name.split(' ');
+      const firstName = nameParts[0] || '';
+      const lastName = nameParts.slice(1).join(' ') || null;
+
       // Create user with email_verified: true from the start
       const { data, error } = await this.supabase
         .from('users')
         .insert({
           email,
-          name,
+          first_name: firstName,
+          last_name: lastName,
           password_hash: passwordHash,
-          role: 'USER',
-          is_active: true,
+          role: 'user',
+          status: 'active',
           email_verified: true, // Verified from the start
         })
         .select()
@@ -169,7 +195,7 @@ export class SupabaseService {
       }
 
       this.logger.log(`Successfully created verified user: ${data.id}`);
-      return data;
+      return this.mapUserFromDb(data);
     } catch (error: any) {
       const errorMessage =
         error instanceof Error ? error.message : JSON.stringify(error);
@@ -187,10 +213,11 @@ export class SupabaseService {
           return {
             id: 'dev-user-id',
             email,
-            name: 'Development User',
+            first_name: 'Development',
+            last_name: 'User',
             password_hash: 'dev-hash',
-            role: 'USER',
-            is_active: true,
+            role: 'user',
+            status: 'active',
             email_verified: true,
             created_at: new Date().toISOString(),
             updated_at: new Date().toISOString(),
@@ -211,7 +238,7 @@ export class SupabaseService {
         return null;
       }
 
-      return data;
+      return this.mapUserFromDb(data);
     } catch (error: any) {
       this.logger.error(`Error in getUserByEmail: ${error.message}`);
       return null;
@@ -234,7 +261,7 @@ export class SupabaseService {
         return null;
       }
 
-      return data;
+      return this.mapUserFromDb(data);
     } catch (error: any) {
       this.logger.error(`Error in getUserById: ${error.message}`);
       return null;
@@ -248,10 +275,11 @@ export class SupabaseService {
         return {
           id,
           email: 'dev@example.com',
-          name: 'Dev User',
+          first_name: 'Dev',
+          last_name: 'User',
           password_hash: 'dev-hash',
-          role: 'USER',
-          is_active: true,
+          role: 'user',
+          status: 'active',
           email_verified: updates.email_verified ?? true, // Use the provided value or default to true
           created_at: new Date().toISOString(),
           updated_at: new Date().toISOString(),
@@ -274,7 +302,7 @@ export class SupabaseService {
         throw new Error('User not found');
       }
 
-      return data;
+      return this.mapUserFromDb(data);
     } catch (error: any) {
       const errorMessage =
         error instanceof Error ? error.message : JSON.stringify(error);
