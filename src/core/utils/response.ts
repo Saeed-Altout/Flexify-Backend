@@ -1,4 +1,11 @@
-import { ApiResponse } from 'src/common/types/response.type';
+interface StandardResponse<T> {
+  success: boolean;
+  message: string;
+  data?: T;
+  error?: string | object;
+  lang?: string;
+  timestamp: string;
+}
 
 /**
  * Utility class for standardizing API responses.
@@ -22,7 +29,7 @@ export class ResponseUtil {
     data?: T,
     message: string = 'Success',
     lang?: string,
-  ): ApiResponse<T> {
+  ): StandardResponse<T> {
     return {
       success: true,
       message,
@@ -49,7 +56,7 @@ export class ResponseUtil {
     message: string = 'Error',
     error?: string | object,
     lang?: string,
-  ): ApiResponse<void> {
+  ): StandardResponse<void> {
     return {
       success: false,
       message,

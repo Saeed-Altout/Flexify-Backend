@@ -54,7 +54,10 @@ export class HttpExceptionFilter implements ExceptionFilter {
     );
 
     // Don't expose internal errors in production
-    if (status === HttpStatus.INTERNAL_SERVER_ERROR && process.env.NODE_ENV === 'production') {
+    if (
+      status === HttpStatus.INTERNAL_SERVER_ERROR &&
+      process.env.NODE_ENV === 'production'
+    ) {
       message = TranslationUtil.translate('errors.internal', lang);
       error = undefined;
     }
@@ -64,4 +67,3 @@ export class HttpExceptionFilter implements ExceptionFilter {
     response.status(status).json(errorResponse);
   }
 }
-
