@@ -19,6 +19,7 @@ import { ResendVerificationDto } from './dto/resend-verification.dto';
 import { ChangePasswordDto } from './dto/change-password.dto';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
 import { ResponseUtil, StandardResponse } from '../../core/utils/response';
+import { RequestUtil } from '../../core/utils/request.util';
 
 @Controller('auth')
 export class AuthController {
@@ -26,54 +27,83 @@ export class AuthController {
 
   @Post('register')
   @HttpCode(HttpStatus.CREATED)
-  async register(@Body() registerDto: RegisterDto): Promise<StandardResponse<any>> {
+  async register(
+    @Body() registerDto: RegisterDto,
+    @Request() req: any,
+  ): Promise<StandardResponse<any>> {
     const result = await this.authService.register(registerDto);
-    return ResponseUtil.success(result, 'User registered successfully');
+    const lang = RequestUtil.getLanguage(req);
+    return ResponseUtil.successSingle(result, 'User registered successfully', lang);
   }
 
   @Post('login')
   @HttpCode(HttpStatus.OK)
-  async login(@Body() loginDto: LoginDto): Promise<StandardResponse<any>> {
+  async login(
+    @Body() loginDto: LoginDto,
+    @Request() req: any,
+  ): Promise<StandardResponse<any>> {
     const result = await this.authService.login(loginDto);
-    return ResponseUtil.success(result, 'Login successful');
+    const lang = RequestUtil.getLanguage(req);
+    return ResponseUtil.successSingle(result, 'Login successful', lang);
   }
 
   @Post('refresh')
   @HttpCode(HttpStatus.OK)
-  async refreshToken(@Body() refreshTokenDto: RefreshTokenDto): Promise<StandardResponse<any>> {
+  async refreshToken(
+    @Body() refreshTokenDto: RefreshTokenDto,
+    @Request() req: any,
+  ): Promise<StandardResponse<any>> {
     const result = await this.authService.refreshToken(refreshTokenDto);
-    return ResponseUtil.success(result, 'Token refreshed successfully');
+    const lang = RequestUtil.getLanguage(req);
+    return ResponseUtil.successSingle(result, 'Token refreshed successfully', lang);
   }
 
   @Post('forgot-password')
   @HttpCode(HttpStatus.OK)
-  async forgotPassword(@Body() forgotPasswordDto: ForgotPasswordDto): Promise<StandardResponse<any>> {
+  async forgotPassword(
+    @Body() forgotPasswordDto: ForgotPasswordDto,
+    @Request() req: any,
+  ): Promise<StandardResponse<any>> {
     await this.authService.forgotPassword(forgotPasswordDto);
-    return ResponseUtil.success(
+    const lang = RequestUtil.getLanguage(req);
+    return ResponseUtil.successSingle(
       null,
       'If the email exists, a password reset link has been sent',
+      lang,
     );
   }
 
   @Post('reset-password')
   @HttpCode(HttpStatus.OK)
-  async resetPassword(@Body() resetPasswordDto: ResetPasswordDto): Promise<StandardResponse<any>> {
+  async resetPassword(
+    @Body() resetPasswordDto: ResetPasswordDto,
+    @Request() req: any,
+  ): Promise<StandardResponse<any>> {
     await this.authService.resetPassword(resetPasswordDto);
-    return ResponseUtil.success(null, 'Password reset successfully');
+    const lang = RequestUtil.getLanguage(req);
+    return ResponseUtil.successSingle(null, 'Password reset successfully', lang);
   }
 
   @Post('verify-email')
   @HttpCode(HttpStatus.OK)
-  async verifyEmail(@Body() verifyEmailDto: VerifyEmailDto): Promise<StandardResponse<any>> {
+  async verifyEmail(
+    @Body() verifyEmailDto: VerifyEmailDto,
+    @Request() req: any,
+  ): Promise<StandardResponse<any>> {
     await this.authService.verifyEmail(verifyEmailDto);
-    return ResponseUtil.success(null, 'Email verified successfully');
+    const lang = RequestUtil.getLanguage(req);
+    return ResponseUtil.successSingle(null, 'Email verified successfully', lang);
   }
 
   @Post('resend-verification')
   @HttpCode(HttpStatus.OK)
-  async resendVerification(@Body() resendVerificationDto: ResendVerificationDto): Promise<StandardResponse<any>> {
+  async resendVerification(
+    @Body() resendVerificationDto: ResendVerificationDto,
+    @Request() req: any,
+  ): Promise<StandardResponse<any>> {
     await this.authService.resendVerificationOTP(resendVerificationDto.email);
-    return ResponseUtil.success(null, 'Verification code sent successfully');
+    const lang = RequestUtil.getLanguage(req);
+    return ResponseUtil.successSingle(null, 'Verification code sent successfully', lang);
   }
 
   @Get('me')
@@ -86,7 +116,8 @@ export class AuthController {
       throw new Error('User not authenticated');
     }
     const user = await this.authService.getCurrentUser(userId);
-    return ResponseUtil.success(user, 'Current user retrieved successfully');
+    const lang = RequestUtil.getLanguage(req);
+    return ResponseUtil.successSingle(user, 'Current user retrieved successfully', lang);
   }
 
   @Post('change-password')
@@ -101,7 +132,8 @@ export class AuthController {
       throw new Error('User not authenticated');
     }
     await this.authService.changePassword(userId, changePasswordDto);
-    return ResponseUtil.success(null, 'Password changed successfully');
+    const lang = RequestUtil.getLanguage(req);
+    return ResponseUtil.successSingle(null, 'Password changed successfully', lang);
   }
 }
 

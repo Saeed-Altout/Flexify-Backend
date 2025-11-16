@@ -62,7 +62,7 @@ export class HttpExceptionFilter implements ExceptionFilter {
       error = undefined;
     }
 
-    const errorResponse = ResponseUtil.error(message, error, lang);
+    const errorResponse = ResponseUtil.error(message, lang);
 
     response.status(status).json(errorResponse);
   }

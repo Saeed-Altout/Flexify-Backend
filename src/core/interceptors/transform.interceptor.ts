@@ -21,12 +21,14 @@ export class TransformInterceptor<T> implements NestInterceptor<T, any> {
 
     return next.handle().pipe(
       map((data) => {
-        // If response is already formatted, return as is
-        if (data && typeof data === 'object' && 'success' in data) {
+        // If response is already formatted (has 'status' field), return as is
+        if (data && typeof data === 'object' && 'status' in data) {
           return data;
         }
 
         // Otherwise, wrap in standard response format
+        // This should not happen since controllers should always return formatted responses
+        // But keeping as fallback for safety
         return ResponseUtil.success(data, undefined, lang);
       }),
     );

@@ -21,6 +21,7 @@ import { UpdateUserDto } from './dto/update-user.dto';
 import { QueryUserDto } from './dto/query-user.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { ResponseUtil, StandardResponse } from '../../core/utils/response';
+import { RequestUtil } from '../../core/utils/request.util';
 
 @Controller('users')
 export class UsersController {
@@ -28,21 +29,40 @@ export class UsersController {
 
   @Post()
   @HttpCode(HttpStatus.CREATED)
-  async create(@Body() createUserDto: CreateUserDto): Promise<StandardResponse<any>> {
+  async create(
+    @Body() createUserDto: CreateUserDto,
+    @Request() req: any,
+  ): Promise<StandardResponse<any>> {
     const user = await this.usersService.create(createUserDto);
-    return ResponseUtil.success(user, 'User created successfully');
+    const lang = RequestUtil.getLanguage(req);
+    return ResponseUtil.successSingle(user, 'User created successfully', lang);
   }
 
   @Get()
-  async findAll(@Query() queryDto: QueryUserDto): Promise<StandardResponse<any>> {
+  async findAll(
+    @Query() queryDto: QueryUserDto,
+    @Request() req: any,
+  ): Promise<StandardResponse<any>> {
     const result = await this.usersService.findAll(queryDto);
-    return ResponseUtil.success(result, 'Users retrieved successfully');
+    const lang = RequestUtil.getLanguage(req);
+    return ResponseUtil.successList(
+      result.users,
+      result.total,
+      result.page,
+      result.limit,
+      'Users retrieved successfully',
+      lang,
+    );
   }
 
   @Get(':id')
-  async findOne(@Param('id') id: string): Promise<StandardResponse<any>> {
+  async findOne(
+    @Param('id') id: string,
+    @Request() req: any,
+  ): Promise<StandardResponse<any>> {
     const user = await this.usersService.findOne(id);
-    return ResponseUtil.success(user, 'User retrieved successfully');
+    const lang = RequestUtil.getLanguage(req);
+    return ResponseUtil.successSingle(user, 'User retrieved successfully', lang);
   }
 
   @Post('me/avatar')
@@ -74,7 +94,8 @@ export class UsersController {
       throw new Error('No file uploaded');
     }
     const avatarUrl = await this.usersService.uploadAvatar(userId, file);
-    return ResponseUtil.success({ avatarUrl }, 'Avatar uploaded successfully');
+    const lang = RequestUtil.getLanguage(req);
+    return ResponseUtil.successSingle({ avatarUrl }, 'Avatar uploaded successfully', lang);
   }
 
   @Patch('me')
@@ -85,21 +106,31 @@ export class UsersController {
       throw new Error('User not authenticated');
     }
     const user = await this.usersService.update(userId, updateUserDto);
-    return ResponseUtil.success(user, 'Profile updated successfully');
+    const lang = RequestUtil.getLanguage(req);
+    return ResponseUtil.successSingle(user, 'Profile updated successfully', lang);
   }
 
   @Patch(':id')
   @UseGuards(JwtAuthGuard)
-  async update(@Param('id') id: string, @Body() updateUserDto: UpdateUserDto): Promise<StandardResponse<any>> {
+  async update(
+    @Param('id') id: string,
+    @Body() updateUserDto: UpdateUserDto,
+    @Request() req: any,
+  ): Promise<StandardResponse<any>> {
     const user = await this.usersService.update(id, updateUserDto);
-    return ResponseUtil.success(user, 'User updated successfully');
+    const lang = RequestUtil.getLanguage(req);
+    return ResponseUtil.successSingle(user, 'User updated successfully', lang);
   }
 
   @Delete(':id')
   @HttpCode(HttpStatus.NO_CONTENT)
-  async remove(@Param('id') id: string): Promise<StandardResponse<any>> {
+  async remove(
+    @Param('id') id: string,
+    @Request() req: any,
+  ): Promise<StandardResponse<any>> {
     await this.usersService.remove(id);
-    return ResponseUtil.success(null, 'User deleted successfully');
+    const lang = RequestUtil.getLanguage(req);
+    return ResponseUtil.successSingle(null, 'User deleted successfully', lang);
   }
 }
 
