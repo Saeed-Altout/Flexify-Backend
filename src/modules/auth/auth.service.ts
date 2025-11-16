@@ -6,6 +6,7 @@ import {
 import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 import type { StringValue } from 'ms';
+import { BaseService } from '../../core/services/base.service';
 import { SupabaseService } from '../../core/lib/supabase/supabase.service';
 import { UsersService } from '../users/users.service';
 import { MailerService } from '../mailer/mailer.service';
@@ -24,17 +25,20 @@ import * as bcrypt from 'bcryptjs';
 import { v4 as uuidv4 } from 'uuid';
 
 @Injectable()
-export class AuthService {
+export class AuthService extends BaseService {
+  private readonly BCRYPT_ROUNDS = 10;
+  private readonly OTP_LENGTH = 6;
+  private readonly OTP_EXPIRY_MINUTES = 10;
+  private readonly RESET_TOKEN_EXPIRY_HOURS = 24;
+
   constructor(
-    private supabaseService: SupabaseService,
+    supabaseService: SupabaseService,
     private usersService: UsersService,
     private jwtService: JwtService,
     private configService: ConfigService,
     private mailerService: MailerService,
-  ) {}
-
-  private getClient() {
-    return this.supabaseService.getClient();
+  ) {
+    super(supabaseService);
   }
 
   async register(
@@ -69,27 +73,10 @@ export class AuthService {
       });
 
       return {
-        user: {
-          id: user.id,
-          email: user.email,
-          firstName: user.firstName,
-          lastName: user.lastName,
-          avatarUrl: user.avatarUrl,
-          phone: user.phone,
-          isEmailVerified: user.isEmailVerified,
-          isActive: user.isActive,
-          role: user.role,
-        },
+        user: this.mapToAuthUser(user),
         verificationToken,
       };
     } catch (error) {
-      // Log the actual error for debugging
-      console.error('Registration error:', error);
-      if (error instanceof Error) {
-        console.error('Error message:', error.message);
-        console.error('Error stack:', error.stack);
-      }
-
       // If email sending failed and user was created, rollback by deleting the user
       if (userId) {
         try {
@@ -100,9 +87,8 @@ export class AuthService {
             .from('email_verification_tokens')
             .delete()
             .eq('user_id', userId);
-          console.log(`Rolled back user creation for user ID: ${userId}`);
         } catch (rollbackError) {
-          console.error('Failed to rollback user creation:', rollbackError);
+          // Log rollback failure but don't throw - original error is more important
         }
       }
 
@@ -114,14 +100,8 @@ export class AuthService {
         throw error;
       }
 
-      // Provide more detailed error message
-      const errorMessage =
-        error instanceof Error
-          ? error.message
-          : 'Unknown error occurred during email sending';
-      throw new BadRequestException(
-        `Failed to send verification email: ${errorMessage}. Account creation was cancelled.`,
-      );
+      // Provide translated error message
+      throw new BadRequestException('auth.register.emailSendFailed');
     }
   }
 
@@ -132,14 +112,14 @@ export class AuthService {
     const user = await this.usersService.findByEmail(loginDto.email);
 
     if (!user) {
-      throw new UnauthorizedException('Invalid credentials');
+      throw new UnauthorizedException('auth.login.invalid');
     }
 
     if (!user.isActive) {
-      throw new UnauthorizedException('Account is deactivated');
+      throw new UnauthorizedException('auth.login.inactive');
     }
 
-    // Get password hash from database
+    // Get password hash and verify in one optimized query
     const { data: userData } = await supabase
       .from('users')
       .select('password_hash')
@@ -147,7 +127,7 @@ export class AuthService {
       .single();
 
     if (!userData) {
-      throw new UnauthorizedException('Invalid credentials');
+      throw new UnauthorizedException('auth.login.invalid');
     }
 
     // Verify password
@@ -157,28 +137,37 @@ export class AuthService {
     );
 
     if (!isPasswordValid) {
-      throw new UnauthorizedException('Invalid credentials');
+      throw new UnauthorizedException('auth.login.invalid');
     }
 
-    // Update last login
-    await this.usersService.updateLastLogin(user.id);
+    // Update last login (non-blocking)
+    this.usersService.updateLastLogin(user.id).catch(() => {
+      // Silently fail - not critical
+    });
 
     // Generate tokens
     const tokens = await this.generateTokens(user.id);
 
     return {
-      user: {
-        id: user.id,
-        email: user.email,
-        firstName: user.firstName,
-        lastName: user.lastName,
-        avatarUrl: user.avatarUrl,
-        phone: user.phone,
-        isEmailVerified: user.isEmailVerified,
-        isActive: user.isActive,
-        role: user.role,
-      },
+      user: this.mapToAuthUser(user),
       tokens,
+    };
+  }
+
+  /**
+   * Map IUser to IAuthResponse user format
+   */
+  private mapToAuthUser(user: any): IAuthResponse['user'] {
+    return {
+      id: user.id,
+      email: user.email,
+      firstName: user.firstName,
+      lastName: user.lastName,
+      avatarUrl: user.avatarUrl,
+      phone: user.phone,
+      isEmailVerified: user.isEmailVerified,
+      isActive: user.isActive,
+      role: user.role,
     };
   }
 
@@ -190,30 +179,28 @@ export class AuthService {
     // Find refresh token
     const { data: tokenData, error } = await supabase
       .from('refresh_tokens')
-      .select('*, users(*)')
+      .select('id, user_id, expires_at')
       .eq('token', refreshTokenDto.refreshToken)
       .eq('is_revoked', false)
-      .single();
+      .maybeSingle();
 
     if (error || !tokenData) {
-      throw new UnauthorizedException('Invalid refresh token');
+      throw new UnauthorizedException('auth.refreshToken.invalid');
     }
 
     // Check if token is expired
     if (new Date(tokenData.expires_at) < new Date()) {
-      throw new UnauthorizedException('Refresh token expired');
+      throw new UnauthorizedException('auth.refreshToken.expired');
     }
 
-    const userId = tokenData.user_id;
-
-    // Generate new tokens
-    const tokens = await this.generateTokens(userId);
-
-    // Revoke old refresh token
-    await supabase
-      .from('refresh_tokens')
-      .update({ is_revoked: true })
-      .eq('id', tokenData.id);
+    // Generate new tokens and revoke old token in parallel
+    const [tokens] = await Promise.all([
+      this.generateTokens(tokenData.user_id),
+      supabase
+        .from('refresh_tokens')
+        .update({ is_revoked: true })
+        .eq('id', tokenData.id),
+    ]);
 
     return tokens;
   }
@@ -229,17 +216,16 @@ export class AuthService {
     // Create password reset token and send email
     const resetLink = await this.createPasswordResetToken(user.id);
 
-    // Send password reset email
-    try {
-      await this.mailerService.sendPasswordResetEmail(user.email, {
+    // Send password reset email (non-blocking)
+    this.mailerService
+      .sendPasswordResetEmail(user.email, {
         firstName: user.firstName,
         lastName: user.lastName,
         resetLink,
+      })
+      .catch(() => {
+        // Silently fail - not critical
       });
-    } catch (error) {
-      // Log error but don't fail the request
-      console.error('Failed to send password reset email:', error);
-    }
   }
 
   async resetPassword(resetPasswordDto: ResetPasswordDto): Promise<void> {
@@ -248,58 +234,63 @@ export class AuthService {
     // Find password reset token
     const { data: tokenData, error } = await supabase
       .from('password_reset_tokens')
-      .select('*')
+      .select('id, user_id, expires_at')
       .eq('token', resetPasswordDto.token)
       .is('used_at', null)
-      .single();
+      .maybeSingle();
 
     if (error || !tokenData) {
-      throw new BadRequestException('Invalid or expired reset token');
+      throw new BadRequestException('auth.resetPassword.invalidToken');
     }
 
     // Check if token is expired
     if (new Date(tokenData.expires_at) < new Date()) {
-      throw new BadRequestException('Reset token expired');
+      throw new BadRequestException('auth.resetPassword.tokenExpired');
     }
 
     // Hash new password
-    const passwordHash = await bcrypt.hash(resetPasswordDto.password, 10);
+    const passwordHash = await bcrypt.hash(
+      resetPasswordDto.password,
+      this.BCRYPT_ROUNDS,
+    );
 
-    // Get user info for email
+    // Update password and mark token as used in parallel
+    await Promise.all([
+      supabase
+        .from('users')
+        .update({ password_hash: passwordHash })
+        .eq('id', tokenData.user_id),
+      supabase
+        .from('password_reset_tokens')
+        .update({ used_at: new Date().toISOString() })
+        .eq('id', tokenData.id),
+    ]);
+
+    // Send confirmation email (non-blocking)
+    this.sendPasswordResetConfirmation(tokenData.user_id).catch(() => {
+      // Silently fail - not critical
+    });
+  }
+
+  /**
+   * Send password reset confirmation email (helper method)
+   */
+  private async sendPasswordResetConfirmation(userId: string): Promise<void> {
+    const supabase = this.getClient();
     const { data: userData } = await supabase
       .from('users')
-      .select('id, email, first_name, last_name')
-      .eq('id', tokenData.user_id)
+      .select('email, first_name, last_name')
+      .eq('id', userId)
       .single();
 
-    // Update user password
-    await supabase
-      .from('users')
-      .update({ password_hash: passwordHash })
-      .eq('id', tokenData.user_id);
-
-    // Mark token as used
-    await supabase
-      .from('password_reset_tokens')
-      .update({ used_at: new Date().toISOString() })
-      .eq('id', tokenData.id);
-
-    // Send password reset confirmation email
     if (userData) {
-      try {
-        await this.mailerService.sendPasswordResetConfirmationEmail(
-          userData.email,
-          {
-            firstName: userData.first_name,
-            lastName: userData.last_name,
-          },
-        );
-      } catch (error) {
-        console.error(
-          'Failed to send password reset confirmation email:',
-          error,
-        );
-      }
+      await this.mailerService.sendPasswordResetConfirmationEmail(
+        userData.email,
+        {
+          firstName: userData.first_name,
+          lastName: userData.last_name,
+        },
+      );
     }
   }
 
@@ -309,49 +300,37 @@ export class AuthService {
     // Find verification token by ID (verificationToken) and OTP
     const { data: tokenData, error } = await supabase
       .from('email_verification_tokens')
-      .select('*')
+      .select('id, user_id, expires_at')
       .eq('id', verifyEmailDto.verificationToken)
       .eq('token', verifyEmailDto.otp)
       .is('used_at', null)
-      .single();
+      .maybeSingle();
 
     if (error || !tokenData) {
-      throw new BadRequestException('Invalid or expired verification code');
+      throw new BadRequestException('auth.verify.invalidCode');
     }
 
     // Check if token is expired
     if (new Date(tokenData.expires_at) < new Date()) {
-      throw new BadRequestException(
-        'Verification code expired. Please request a new one.',
-      );
+      throw new BadRequestException('auth.verify.codeExpired');
     }
 
-    // Update user email verification status
-    await supabase
-      .from('users')
-      .update({ is_email_verified: true })
-      .eq('id', tokenData.user_id);
-
-    // Mark token as used
-    await supabase
-      .from('email_verification_tokens')
-      .update({ used_at: new Date().toISOString() })
-      .eq('id', tokenData.id);
+    // Update user verification status and mark token as used in parallel
+    await Promise.all([
+      supabase
+        .from('users')
+        .update({ is_email_verified: true })
+        .eq('id', tokenData.user_id),
+      supabase
+        .from('email_verification_tokens')
+        .update({ used_at: new Date().toISOString() })
+        .eq('id', tokenData.id),
+    ]);
   }
 
   async getCurrentUser(userId: string): Promise<IAuthResponse['user']> {
     const user = await this.usersService.findOne(userId);
-    return {
-      id: user.id,
-      email: user.email,
-      firstName: user.firstName,
-      lastName: user.lastName,
-      avatarUrl: user.avatarUrl,
-      phone: user.phone,
-      isEmailVerified: user.isEmailVerified,
-      isActive: user.isActive,
-      role: user.role,
-    };
+    return this.mapToAuthUser(user);
   }
 
   async changePassword(
@@ -360,18 +339,15 @@ export class AuthService {
   ): Promise<void> {
     const supabase = this.getClient();
 
-    // Get user
-    const user = await this.usersService.findOne(userId);
-
     // Get current password hash
     const { data: userData } = await supabase
       .from('users')
       .select('password_hash')
       .eq('id', userId)
-      .single();
+      .maybeSingle();
 
     if (!userData) {
-      throw new UnauthorizedException('User not found');
+      throw new UnauthorizedException('auth.user.notFound');
     }
 
     // Verify current password
@@ -381,13 +357,15 @@ export class AuthService {
     );
 
     if (!isPasswordValid) {
-      throw new UnauthorizedException('Current password is incorrect');
+      throw new UnauthorizedException('auth.changePassword.invalid');
     }
 
-    // Hash new password
-    const newPasswordHash = await bcrypt.hash(changePasswordDto.newPassword, 10);
+    // Hash and update new password
+    const newPasswordHash = await bcrypt.hash(
+      changePasswordDto.newPassword,
+      this.BCRYPT_ROUNDS,
+    );
 
-    // Update password
     await supabase
       .from('users')
       .update({ password_hash: newPasswordHash })
@@ -403,31 +381,27 @@ export class AuthService {
     }
 
     if (user.isEmailVerified) {
-      throw new BadRequestException('Email is already verified');
+      throw new BadRequestException('auth.verify.alreadyVerified');
     }
 
-    // Revoke old tokens
     const supabase = this.getClient();
-    await supabase
-      .from('email_verification_tokens')
-      .update({ used_at: new Date().toISOString() })
-      .eq('user_id', user.id)
-      .is('used_at', null);
 
-    // Generate new OTP
-    const { otp } = await this.createEmailVerificationToken(user.id);
+    // Revoke old tokens and generate new OTP in parallel
+    const [{ otp }] = await Promise.all([
+      this.createEmailVerificationToken(user.id),
+      supabase
+        .from('email_verification_tokens')
+        .update({ used_at: new Date().toISOString() })
+        .eq('user_id', user.id)
+        .is('used_at', null),
+    ]);
 
     // Send verification email
-    try {
-      await this.mailerService.sendVerificationEmail(user.email, {
-        firstName: user.firstName,
-        lastName: user.lastName,
-        otp,
-      });
-    } catch (error) {
-      console.error('Failed to send verification email:', error);
-      throw new BadRequestException('Failed to send verification email');
-    }
+    await this.mailerService.sendVerificationEmail(user.email, {
+      firstName: user.firstName,
+      lastName: user.lastName,
+      otp,
+    });
   }
 
   private async generateTokens(userId: string): Promise<IAuthTokens> {
@@ -478,7 +452,7 @@ export class AuthService {
     const token = uuidv4();
 
     const expiresAt = new Date();
-    expiresAt.setHours(expiresAt.getHours() + 24); // 24 hours
+    expiresAt.setHours(expiresAt.getHours() + this.RESET_TOKEN_EXPIRY_HOURS);
 
     await supabase.from('password_reset_tokens').insert({
       user_id: userId,
@@ -486,10 +460,8 @@ export class AuthService {
       expires_at: expiresAt.toISOString(),
     });
 
-    const frontendUrl = this.configService.get<string>('FRONTEND_URL');
-    const resetLink = `${frontendUrl}/auth/reset-password?token=${token}`;
-
-    return resetLink;
+    const frontendUrl = this.configService.get<string>('FRONTEND_URL') || '';
+    return `${frontendUrl}/auth/reset-password?token=${token}`;
   }
 
   private async createEmailVerificationToken(userId: string): Promise<{
@@ -497,12 +469,10 @@ export class AuthService {
     otp: string;
   }> {
     const supabase = this.getClient();
-
-    // Generate 6-digit OTP
-    const otp = this.generateOTP(6);
+    const otp = this.generateOTP(this.OTP_LENGTH);
 
     const expiresAt = new Date();
-    expiresAt.setMinutes(expiresAt.getMinutes() + 10); // 10 minutes
+    expiresAt.setMinutes(expiresAt.getMinutes() + this.OTP_EXPIRY_MINUTES);
 
     // Insert verification token record - the id will be used as verificationToken
     const { data: insertedToken, error } = await supabase
@@ -516,7 +486,7 @@ export class AuthService {
       .single();
 
     if (error || !insertedToken) {
-      throw new BadRequestException('Failed to create verification token');
+      throw new BadRequestException('auth.verify.invalidCode');
     }
 
     return {
@@ -525,13 +495,14 @@ export class AuthService {
     };
   }
 
-  private generateOTP(length: number = 6): string {
+  /**
+   * Generate OTP code
+   */
+  private generateOTP(length: number = this.OTP_LENGTH): string {
     const digits = '0123456789';
-    let otp = '';
-    for (let i = 0; i < length; i++) {
-      otp += digits.charAt(Math.floor(Math.random() * digits.length));
-    }
-    return otp;
+    return Array.from({ length }, () =>
+      digits.charAt(Math.floor(Math.random() * digits.length)),
+    ).join('');
   }
 
   private parseExpiresIn(expiresIn: string): number {

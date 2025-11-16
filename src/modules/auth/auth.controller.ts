@@ -20,6 +20,7 @@ import { ChangePasswordDto } from './dto/change-password.dto';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
 import { ResponseUtil, StandardResponse } from '../../core/utils/response';
 import { RequestUtil } from '../../core/utils/request.util';
+import { UnauthorizedException } from '@nestjs/common';
 
 @Controller('auth')
 export class AuthController {
@@ -33,7 +34,7 @@ export class AuthController {
   ): Promise<StandardResponse<any>> {
     const result = await this.authService.register(registerDto);
     const lang = RequestUtil.getLanguage(req);
-    return ResponseUtil.successSingle(result, 'User registered successfully', lang);
+    return ResponseUtil.successSingle(result, 'auth.register.success', lang);
   }
 
   @Post('login')
@@ -44,7 +45,7 @@ export class AuthController {
   ): Promise<StandardResponse<any>> {
     const result = await this.authService.login(loginDto);
     const lang = RequestUtil.getLanguage(req);
-    return ResponseUtil.successSingle(result, 'Login successful', lang);
+    return ResponseUtil.successSingle(result, 'auth.login.success', lang);
   }
 
   @Post('refresh')
@@ -55,7 +56,7 @@ export class AuthController {
   ): Promise<StandardResponse<any>> {
     const result = await this.authService.refreshToken(refreshTokenDto);
     const lang = RequestUtil.getLanguage(req);
-    return ResponseUtil.successSingle(result, 'Token refreshed successfully', lang);
+    return ResponseUtil.successSingle(result, 'auth.refreshToken.success', lang);
   }
 
   @Post('forgot-password')
@@ -68,7 +69,7 @@ export class AuthController {
     const lang = RequestUtil.getLanguage(req);
     return ResponseUtil.successSingle(
       null,
-      'If the email exists, a password reset link has been sent',
+      'auth.forgetPassword.success',
       lang,
     );
   }
@@ -81,7 +82,7 @@ export class AuthController {
   ): Promise<StandardResponse<any>> {
     await this.authService.resetPassword(resetPasswordDto);
     const lang = RequestUtil.getLanguage(req);
-    return ResponseUtil.successSingle(null, 'Password reset successfully', lang);
+    return ResponseUtil.successSingle(null, 'auth.resetPassword.success', lang);
   }
 
   @Post('verify-email')
@@ -92,7 +93,7 @@ export class AuthController {
   ): Promise<StandardResponse<any>> {
     await this.authService.verifyEmail(verifyEmailDto);
     const lang = RequestUtil.getLanguage(req);
-    return ResponseUtil.successSingle(null, 'Email verified successfully', lang);
+    return ResponseUtil.successSingle(null, 'auth.verifyAccount.success', lang);
   }
 
   @Post('resend-verification')
@@ -103,21 +104,20 @@ export class AuthController {
   ): Promise<StandardResponse<any>> {
     await this.authService.resendVerificationOTP(resendVerificationDto.email);
     const lang = RequestUtil.getLanguage(req);
-    return ResponseUtil.successSingle(null, 'Verification code sent successfully', lang);
+    return ResponseUtil.successSingle(null, 'auth.resendVerificationCode.success', lang);
   }
 
   @Get('me')
   @UseGuards(JwtAuthGuard)
   @HttpCode(HttpStatus.OK)
   async getCurrentUser(@Request() req: any): Promise<StandardResponse<any>> {
-    // Extract user ID from JWT token (from Authorization header)
     const userId = req.user?.sub || req.user?.id;
     if (!userId) {
-      throw new Error('User not authenticated');
+      throw new UnauthorizedException('auth.user.notAuthenticated');
     }
     const user = await this.authService.getCurrentUser(userId);
     const lang = RequestUtil.getLanguage(req);
-    return ResponseUtil.successSingle(user, 'Current user retrieved successfully', lang);
+    return ResponseUtil.successSingle(user, 'auth.me.success', lang);
   }
 
   @Post('change-password')
@@ -129,11 +129,11 @@ export class AuthController {
   ): Promise<StandardResponse<any>> {
     const userId = req.user?.sub || req.user?.id;
     if (!userId) {
-      throw new Error('User not authenticated');
+      throw new UnauthorizedException('auth.user.notAuthenticated');
     }
     await this.authService.changePassword(userId, changePasswordDto);
     const lang = RequestUtil.getLanguage(req);
-    return ResponseUtil.successSingle(null, 'Password changed successfully', lang);
+    return ResponseUtil.successSingle(null, 'auth.changePassword.success', lang);
   }
 }
 

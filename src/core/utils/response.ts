@@ -1,9 +1,11 @@
+import { TranslationUtil } from './translations';
+
 /**
  * Standard API Response Format
  *
  * All API responses follow this consistent structure:
  * - status: "success" | "error"
- * - message: Human-readable message
+ * - message: Human-readable message (translated)
  * - lang: Language code (e.g., "en", "ar")
  * - timestamp: ISO 8601 timestamp
  * - data: The response payload (null for errors)
@@ -58,6 +60,22 @@ export class ResponseUtil {
   }
 
   /**
+   * Translate message key or use provided message
+   */
+  private static translateMessage(message: string, lang: string): string {
+    // If message looks like a translation key (contains dots), try to translate it
+    if (message.includes('.') && !message.includes(' ')) {
+      const translated = TranslationUtil.translate(message, lang);
+      // If translation was found (not the key itself), return it
+      if (translated !== message) {
+        return translated;
+      }
+    }
+    // Otherwise, return the message as-is (already translated or plain text)
+    return message;
+  }
+
+  /**
    * Returns a standardized success response for a single item.
    * Wraps the data in { data: T } structure.
    *
@@ -75,13 +93,14 @@ export class ResponseUtil {
    */
   static successSingle<T>(
     data: T,
-    message: string = 'Success',
+    message: string = 'common.success',
     lang?: string,
   ): StandardResponse<SingleItemData<T>> {
+    const language = this.getLang(lang);
     return {
       status: 'success',
-      message,
-      lang: this.getLang(lang),
+      message: this.translateMessage(message, language),
+      lang: language,
       timestamp: new Date().toISOString(),
       data: {
         data,
@@ -113,9 +132,10 @@ export class ResponseUtil {
     total: number,
     page: number,
     limit: number,
-    message: string = 'Success',
+    message: string = 'common.success',
     lang?: string,
   ): StandardResponse<ArrayDataWithMeta<T>> {
+    const language = this.getLang(lang);
     const totalPages = Math.ceil(total / limit);
     const meta: PaginationMeta = {
       page,
@@ -128,8 +148,8 @@ export class ResponseUtil {
 
     return {
       status: 'success',
-      message,
-      lang: this.getLang(lang),
+      message: this.translateMessage(message, language),
+      lang: language,
       timestamp: new Date().toISOString(),
       data: {
         data,
@@ -157,15 +177,18 @@ export class ResponseUtil {
    */
   static success<T>(
     data?: T,
-    message: string = 'Success',
+    message: string = 'common.success',
     lang?: string,
   ): StandardResponse<SingleItemData<T> | ArrayDataWithMeta<T> | null> {
+    const language = this.getLang(lang);
+    const translatedMessage = this.translateMessage(message, language);
+
     // If data is undefined or null, return null in data field
     if (data === undefined || data === null) {
       return {
         status: 'success',
-        message,
-        lang: this.getLang(lang),
+        message: translatedMessage,
+        lang: language,
         timestamp: new Date().toISOString(),
         data: null,
       };
@@ -175,8 +198,8 @@ export class ResponseUtil {
     if (Array.isArray(data)) {
       return {
         status: 'success',
-        message,
-        lang: this.getLang(lang),
+        message: translatedMessage,
+        lang: language,
         timestamp: new Date().toISOString(),
         data: {
           data,
@@ -210,13 +233,14 @@ export class ResponseUtil {
    * ```
    */
   static error(
-    message: string = 'Error',
+    message: string = 'common.error',
     lang?: string,
   ): StandardResponse<null> {
+    const language = this.getLang(lang);
     return {
       status: 'error',
-      message,
-      lang: this.getLang(lang),
+      message: this.translateMessage(message, language),
+      lang: language,
       timestamp: new Date().toISOString(),
       data: null,
     };

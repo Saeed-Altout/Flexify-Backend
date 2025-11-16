@@ -22,6 +22,7 @@ import { QueryUserDto } from './dto/query-user.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { ResponseUtil, StandardResponse } from '../../core/utils/response';
 import { RequestUtil } from '../../core/utils/request.util';
+import { UnauthorizedException } from '@nestjs/common';
 
 @Controller('users')
 export class UsersController {
@@ -35,7 +36,7 @@ export class UsersController {
   ): Promise<StandardResponse<any>> {
     const user = await this.usersService.create(createUserDto);
     const lang = RequestUtil.getLanguage(req);
-    return ResponseUtil.successSingle(user, 'User created successfully', lang);
+    return ResponseUtil.successSingle(user, 'users.create.success', lang);
   }
 
   @Get()
@@ -50,7 +51,7 @@ export class UsersController {
       result.total,
       result.page,
       result.limit,
-      'Users retrieved successfully',
+      'users.findAll.success',
       lang,
     );
   }
@@ -62,7 +63,7 @@ export class UsersController {
   ): Promise<StandardResponse<any>> {
     const user = await this.usersService.findOne(id);
     const lang = RequestUtil.getLanguage(req);
-    return ResponseUtil.successSingle(user, 'User retrieved successfully', lang);
+    return ResponseUtil.successSingle(user, 'users.findOne.success', lang);
   }
 
   @Post('me/avatar')
@@ -95,7 +96,7 @@ export class UsersController {
     }
     const avatarUrl = await this.usersService.uploadAvatar(userId, file);
     const lang = RequestUtil.getLanguage(req);
-    return ResponseUtil.successSingle({ avatarUrl }, 'Avatar uploaded successfully', lang);
+    return ResponseUtil.successSingle({ avatarUrl }, 'users.avatar.upload.success', lang);
   }
 
   @Patch('me')
@@ -103,11 +104,11 @@ export class UsersController {
   async updateMe(@Request() req: any, @Body() updateUserDto: UpdateUserDto): Promise<StandardResponse<any>> {
     const userId = req.user?.sub || req.user?.id;
     if (!userId) {
-      throw new Error('User not authenticated');
+      throw new UnauthorizedException('auth.user.notAuthenticated');
     }
     const user = await this.usersService.update(userId, updateUserDto);
     const lang = RequestUtil.getLanguage(req);
-    return ResponseUtil.successSingle(user, 'Profile updated successfully', lang);
+    return ResponseUtil.successSingle(user, 'users.update.me.success', lang);
   }
 
   @Patch(':id')
@@ -119,7 +120,7 @@ export class UsersController {
   ): Promise<StandardResponse<any>> {
     const user = await this.usersService.update(id, updateUserDto);
     const lang = RequestUtil.getLanguage(req);
-    return ResponseUtil.successSingle(user, 'User updated successfully', lang);
+    return ResponseUtil.successSingle(user, 'users.update.success', lang);
   }
 
   @Delete(':id')
@@ -130,7 +131,7 @@ export class UsersController {
   ): Promise<StandardResponse<any>> {
     await this.usersService.remove(id);
     const lang = RequestUtil.getLanguage(req);
-    return ResponseUtil.successSingle(null, 'User deleted successfully', lang);
+    return ResponseUtil.successSingle(null, 'users.delete.success', lang);
   }
 }
 

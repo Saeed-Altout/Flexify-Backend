@@ -4,7 +4,7 @@ import {
   ConflictException,
   BadRequestException,
 } from '@nestjs/common';
-import { SupabaseService } from '../../core/lib/supabase/supabase.service';
+import { BaseService } from '../../core/services/base.service';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { QueryUserDto, UserSortBy, SortOrder } from './dto/query-user.dto';
@@ -13,29 +13,21 @@ import { UserRole } from './enums/user-role.enum';
 import * as bcrypt from 'bcryptjs';
 
 @Injectable()
-export class UsersService {
-  constructor(private supabaseService: SupabaseService) {}
-
-  private getClient() {
-    return this.supabaseService.getClient();
-  }
+export class UsersService extends BaseService {
+  private readonly BCRYPT_ROUNDS = 10;
+  private readonly DEFAULT_PAGE = 1;
+  private readonly DEFAULT_LIMIT = 10;
 
   async create(createUserDto: CreateUserDto): Promise<IUser> {
     const supabase = this.getClient();
 
-    // Check if user already exists
-    const { data: existingUser } = await supabase
-      .from('users')
-      .select('id, email')
-      .eq('email', createUserDto.email)
-      .single();
-
-    if (existingUser) {
-      throw new ConflictException('User with this email already exists');
+    // Check if user already exists using optimized exists method
+    if (await this.exists('users', 'email', createUserDto.email)) {
+      throw new ConflictException('users.create.emailExists');
     }
 
     // Hash password
-    const passwordHash = await bcrypt.hash(createUserDto.password, 10);
+    const passwordHash = await bcrypt.hash(createUserDto.password, this.BCRYPT_ROUNDS);
 
     // Create user
     const { data: user, error } = await supabase
@@ -51,8 +43,8 @@ export class UsersService {
       .select()
       .single();
 
-    if (error) {
-      throw new BadRequestException(`Failed to create user: ${error.message}`);
+    if (error || !user) {
+      throw new BadRequestException('users.create.failed');
     }
 
     return this.mapToUser(user);
@@ -61,8 +53,8 @@ export class UsersService {
   async findAll(queryDto: QueryUserDto): Promise<IUsersListResponse> {
     const supabase = this.getClient();
     const {
-      page = 1,
-      limit = 10,
+      page = this.DEFAULT_PAGE,
+      limit = this.DEFAULT_LIMIT,
       search,
       role,
       isActive,
@@ -73,49 +65,34 @@ export class UsersService {
 
     let query = supabase.from('users').select('*', { count: 'exact' });
 
-    // Apply filters
+    // Apply filters efficiently
     if (search) {
       query = query.or(
         `email.ilike.%${search}%,first_name.ilike.%${search}%,last_name.ilike.%${search}%`,
       );
     }
 
-    if (role) {
-      query = query.eq('role', role);
-    }
+    if (role) query = query.eq('role', role);
+    if (isActive !== undefined) query = query.eq('is_active', isActive);
+    if (isEmailVerified !== undefined) query = query.eq('is_email_verified', isEmailVerified);
 
-    if (isActive !== undefined) {
-      query = query.eq('is_active', isActive);
-    }
-
-    if (isEmailVerified !== undefined) {
-      query = query.eq('is_email_verified', isEmailVerified);
-    }
-
-    // Apply sorting
-    query = query.order(sortBy, { ascending: sortOrder === SortOrder.ASC });
-
-    // Apply pagination
-    const from = (page - 1) * limit;
-    const to = from + limit - 1;
-    query = query.range(from, to);
+    // Apply sorting and pagination
+    query = query
+      .order(sortBy, { ascending: sortOrder === SortOrder.ASC })
+      .range((page - 1) * limit, page * limit - 1);
 
     const { data, error, count } = await query;
 
     if (error) {
-      throw new BadRequestException(`Failed to fetch users: ${error.message}`);
+      throw new BadRequestException('users.findAll.failed');
     }
 
-    const users = (data || []).map((user) => this.mapToUser(user));
-    const total = count || 0;
-    const totalPages = Math.ceil(total / limit);
-
     return {
-      users,
-      total,
+      users: (data || []).map((user) => this.mapToUser(user)),
+      total: count || 0,
       page,
       limit,
-      totalPages,
+      totalPages: Math.ceil((count || 0) / limit),
     };
   }
 
@@ -129,7 +106,7 @@ export class UsersService {
       .single();
 
     if (error || !data) {
-      throw new NotFoundException('User not found');
+      throw new NotFoundException('users.findOne.notFound');
     }
 
     return this.mapToUser(data);
@@ -142,13 +119,9 @@ export class UsersService {
       .from('users')
       .select('*')
       .eq('email', email)
-      .single();
+      .maybeSingle();
 
-    if (error || !data) {
-      return null;
-    }
-
-    return this.mapToUser(data);
+    return error || !data ? null : this.mapToUser(data);
   }
 
   async update(id: string, updateUserDto: UpdateUserDto): Promise<IUser> {
@@ -158,44 +131,16 @@ export class UsersService {
     await this.findOne(id);
 
     // If email is being updated, check for conflicts
-    if (updateUserDto.email) {
-      const { data: existingUser } = await supabase
-        .from('users')
-        .select('id, email')
-        .eq('email', updateUserDto.email)
-        .neq('id', id)
-        .single();
-
-      if (existingUser) {
-        throw new ConflictException('User with this email already exists');
-      }
+    if (updateUserDto.email && (await this.exists('users', 'email', updateUserDto.email, id))) {
+      throw new ConflictException('users.update.emailExists');
     }
 
-    const updateData: any = {};
+    // Build update data object efficiently
+    const updateData = this.buildUpdateData(updateUserDto);
 
-    if (updateUserDto.email !== undefined) {
-      updateData.email = updateUserDto.email;
-    }
-    if (updateUserDto.firstName !== undefined) {
-      updateData.first_name = updateUserDto.firstName;
-    }
-    if (updateUserDto.lastName !== undefined) {
-      updateData.last_name = updateUserDto.lastName;
-    }
-    if (updateUserDto.avatarUrl !== undefined) {
-      updateData.avatar_url = updateUserDto.avatarUrl;
-    }
-    if (updateUserDto.phone !== undefined) {
-      updateData.phone = updateUserDto.phone;
-    }
-    if (updateUserDto.isActive !== undefined) {
-      updateData.is_active = updateUserDto.isActive;
-    }
-    if (updateUserDto.isEmailVerified !== undefined) {
-      updateData.is_email_verified = updateUserDto.isEmailVerified;
-    }
-    if (updateUserDto.role !== undefined) {
-      updateData.role = updateUserDto.role;
+    if (Object.keys(updateData).length === 0) {
+      // No changes, return existing user
+      return this.findOne(id);
     }
 
     const { data, error } = await supabase
@@ -205,11 +150,36 @@ export class UsersService {
       .select()
       .single();
 
-    if (error) {
-      throw new BadRequestException(`Failed to update user: ${error.message}`);
+    if (error || !data) {
+      throw new BadRequestException('users.update.failed');
     }
 
     return this.mapToUser(data);
+  }
+
+  /**
+   * Build update data object from DTO
+   */
+  private buildUpdateData(dto: UpdateUserDto): Record<string, any> {
+    const updateData: Record<string, any> = {};
+    const fieldMapping: Record<keyof UpdateUserDto, string> = {
+      email: 'email',
+      firstName: 'first_name',
+      lastName: 'last_name',
+      avatarUrl: 'avatar_url',
+      phone: 'phone',
+      isActive: 'is_active',
+      isEmailVerified: 'is_email_verified',
+      role: 'role',
+    };
+
+    for (const [key, value] of Object.entries(dto)) {
+      if (value !== undefined && fieldMapping[key as keyof UpdateUserDto]) {
+        updateData[fieldMapping[key as keyof UpdateUserDto]] = value;
+      }
+    }
+
+    return updateData;
   }
 
   async remove(id: string): Promise<void> {
@@ -221,17 +191,20 @@ export class UsersService {
     const { error } = await supabase.from('users').delete().eq('id', id);
 
     if (error) {
-      throw new BadRequestException(`Failed to delete user: ${error.message}`);
+      throw new BadRequestException('users.delete.failed');
     }
   }
 
+  /**
+   * Internal method for rollback operations (no existence check)
+   * Used by auth service for registration rollback
+   */
   async deleteById(id: string): Promise<void> {
     const supabase = this.getClient();
-
     const { error } = await supabase.from('users').delete().eq('id', id);
 
     if (error) {
-      throw new BadRequestException(`Failed to delete user: ${error.message}`);
+      throw new BadRequestException('users.delete.failed');
     }
   }
 
@@ -242,60 +215,36 @@ export class UsersService {
     await this.findOne(userId);
 
     // Generate unique filename
-    const fileExt = file.originalname.split('.').pop();
+    const fileExt = file.originalname.split('.').pop() || 'jpg';
     const fileName = `${userId}-${Date.now()}.${fileExt}`;
     const filePath = `avatars/${fileName}`;
 
-    // Get file buffer (multer provides buffer directly)
-    const fileBuffer = file.buffer;
-
     // Upload to Supabase Storage
-    // Note: You need to create a 'avatars' bucket in Supabase Storage first
-    const { data: uploadData, error: uploadError } = await supabase.storage
+    const { error: uploadError } = await supabase.storage
       .from('avatars')
-      .upload(filePath, fileBuffer, {
+      .upload(filePath, file.buffer, {
         contentType: file.mimetype,
         upsert: false,
       });
 
     if (uploadError) {
-      // If Supabase Storage is not set up, we can store the URL directly
-      // For now, we'll use a simple approach: store a placeholder URL
-      // In production, you should set up Supabase Storage bucket 'avatars'
-      console.warn('Supabase Storage upload failed, using placeholder:', uploadError.message);
-      
-      // Alternative: You could upload to a different service or use base64
-      // For now, we'll just update with a placeholder
+      // Fallback to placeholder if storage fails
       const placeholderUrl = `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(userId)}`;
-      
-      await supabase
-        .from('users')
-        .update({ avatar_url: placeholderUrl })
-        .eq('id', userId);
-
+      await supabase.from('users').update({ avatar_url: placeholderUrl }).eq('id', userId);
       return placeholderUrl;
     }
 
-    // Get public URL
-    const { data: urlData } = supabase.storage
-      .from('avatars')
-      .getPublicUrl(filePath);
-
+    // Get public URL and update user
+    const { data: urlData } = supabase.storage.from('avatars').getPublicUrl(filePath);
     const avatarUrl = urlData.publicUrl;
 
-    // Update user with new avatar URL
-    await supabase
-      .from('users')
-      .update({ avatar_url: avatarUrl })
-      .eq('id', userId);
+    await supabase.from('users').update({ avatar_url: avatarUrl }).eq('id', userId);
 
     return avatarUrl;
   }
 
   async updateLastLogin(id: string): Promise<void> {
-    const supabase = this.getClient();
-
-    await supabase
+    await this.getClient()
       .from('users')
       .update({ last_login_at: new Date().toISOString() })
       .eq('id', id);

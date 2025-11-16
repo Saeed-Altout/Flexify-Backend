@@ -72,11 +72,8 @@ export class TranslationUtil {
         try {
           const content = fs.readFileSync(filePath, 'utf8');
           this.translations[lang] = JSON.parse(content) as TranslationDict;
-        } catch (error) {
-          console.error(
-            `[TranslationUtil] Failed to parse ${lang}.json:`,
-            error,
-          );
+        } catch {
+          // If translation file fails to load, use empty dict
           this.translations[lang] = {};
         }
       } else {
