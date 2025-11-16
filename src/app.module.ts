@@ -3,6 +3,9 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
 import { ThrottlerModule } from '@nestjs/throttler';
 
 import { EnvironmentVariables } from './config/env.validation';
+import { AuthModule } from './modules/auth/auth.module';
+import { UsersModule } from './modules/users/users.module';
+import { SupabaseService } from './core/lib/supabase/supabase.service';
 
 @Module({
   imports: [
@@ -30,6 +33,9 @@ import { EnvironmentVariables } from './config/env.validation';
       ],
       inject: [ConfigService],
     }),
+    AuthModule,
+    UsersModule,
   ],
+  providers: [SupabaseService],
 })
 export class AppModule {}

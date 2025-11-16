@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Welcome to Flexify</title>
+  <style>
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+      line-height: 1.6;
+      color: #333;
+      max-width: 600px;
+      margin: 0 auto;
+      padding: 20px;
+      background-color: #f5f5f5;
+    }
+    .container {
+      background-color: #ffffff;
+      border-radius: 8px;
+      padding: 40px;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+    .header {
+      text-align: center;
+      margin-bottom: 30px;
+    }
+    .logo {
+      font-size: 32px;
+      font-weight: bold;
+      color: #2563eb;
+      margin-bottom: 10px;
+    }
+    .greeting {
+      font-size: 24px;
+      color: #1f2937;
+      margin-bottom: 20px;
+    }
+    .content {
+      margin-bottom: 30px;
+    }
+    .otp-box {
+      background-color: #f3f4f6;
+      border: 2px dashed #2563eb;
+      border-radius: 8px;
+      padding: 20px;
+      text-align: center;
+      margin: 30px 0;
+    }
+    .otp-code {
+      font-size: 36px;
+      font-weight: bold;
+      color: #2563eb;
+      letter-spacing: 8px;
+      font-family: 'Courier New', monospace;
+    }
+    .otp-label {
+      font-size: 14px;
+      color: #6b7280;
+      margin-top: 10px;
+    }
+    .warning {
+      background-color: #fef3c7;
+      border-left: 4px solid #f59e0b;
+      padding: 15px;
+      margin: 20px 0;
+      border-radius: 4px;
+    }
+    .warning-text {
+      color: #92400e;
+      font-size: 14px;
+      font-weight: 500;
+    }
+    .footer {
+      margin-top: 40px;
+      padding-top: 20px;
+      border-top: 1px solid #e5e7eb;
+      text-align: center;
+      color: #6b7280;
+      font-size: 12px;
+    }
+    .button {
+      display: inline-block;
+      padding: 12px 24px;
+      background-color: #2563eb;
+      color: #ffffff;
+      text-decoration: none;
+      border-radius: 6px;
+      margin-top: 20px;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <div class="logo">Flexify</div>
+    </div>
+    
+    <div class="greeting">
+      Hello {{firstName}} {{lastName}},
+    </div>
+    
+    <div class="content">
+      <p>Welcome to Flexify! We're excited to have you on board.</p>
+      
+      <p>To complete your registration and verify your account, please use the One-Time Password (OTP) below:</p>
+      
+      <div class="otp-box">
+        <div class="otp-code">{{otp}}</div>
+        <div class="otp-label">Your verification code</div>
+      </div>
+      
+      <div class="warning">
+        <div class="warning-text">
+          ⚠️ <strong>Security Notice:</strong> Never share this OTP with anyone. Flexify staff will never ask for your verification code.
+        </div>
+      </div>
+      
+      <p>This code will expire in 10 minutes for security reasons. If you didn't create an account with Flexify, please ignore this email.</p>
+      
+      <p>If you have any questions or need assistance, feel free to reach out to our support team.</p>
+    </div>
+    
+    <div class="footer">
+      <p>Best regards,<br>The Flexify Team</p>
+      <p style="margin-top: 20px; font-size: 11px; color: #9ca3af;">
+        This is an automated email. Please do not reply to this message.
+      </p>
+    </div>
+  </div>
+</body>
+</html>
+
