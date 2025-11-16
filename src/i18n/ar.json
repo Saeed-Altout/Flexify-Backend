@@ -22,6 +22,7 @@
   "auth.me.success": "تم استرجاع المستخدم الحالي بنجاح",
   "auth.changePassword.success": "تم تغيير كلمة المرور بنجاح",
   "auth.changePassword.invalid": "كلمة المرور الحالية غير صحيحة",
+  "auth.logout.success": "تم تسجيل الخروج بنجاح من جميع الأجهزة",
   "users.create.success": "تم إنشاء المستخدم بنجاح",
   "users.create.emailExists": "مستخدم بهذا البريد الإلكتروني موجود بالفعل",
   "users.create.failed": "فشل إنشاء المستخدم",

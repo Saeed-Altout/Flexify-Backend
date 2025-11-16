@@ -22,6 +22,7 @@
   "auth.me.success": "Current user retrieved successfully",
   "auth.changePassword.success": "Password changed successfully",
   "auth.changePassword.invalid": "Current password is incorrect",
+  "auth.logout.success": "Logged out successfully from all devices",
   "users.create.success": "User created successfully",
   "users.create.emailExists": "User with this email already exists",
   "users.create.failed": "Failed to create user",

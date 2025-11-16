@@ -83,28 +83,43 @@ export class ResponseUtil {
    * @param data - The payload data to return.
    * @param message - A human-readable success message (defaults to `'Success'`).
    * @param lang - The language code for the message (defaults to `'en'`).
-   * @returns A StandardResponse with wrapped data structure.
+   * @param wrap - Whether to wrap data in { data: T } structure (defaults to true).
+   * @returns A StandardResponse with wrapped or unwrapped data structure.
    *
    * @example
    * ```ts
    * ResponseUtil.successSingle({ id: 1, name: "John" }, "User retrieved successfully", "en")
    * // Returns: { status: "success", message: "...", lang: "en", timestamp: "...", data: { data: { id: 1, name: "John" } } }
+   *
+   * ResponseUtil.successSingle({ user: {...}, token: "..." }, "Registered successfully", "en", false)
+   * // Returns: { status: "success", message: "...", lang: "en", timestamp: "...", data: { user: {...}, token: "..." } }
    * ```
    */
   static successSingle<T>(
     data: T,
     message: string = 'common.success',
     lang?: string,
-  ): StandardResponse<SingleItemData<T>> {
+    wrap: boolean = true,
+  ): StandardResponse<SingleItemData<T> | T | null> {
     const language = this.getLang(lang);
+
+    // If data is null or undefined, return null directly (don't wrap)
+    if (data === null || data === undefined) {
+      return {
+        status: 'success',
+        message: this.translateMessage(message, language),
+        lang: language,
+        timestamp: new Date().toISOString(),
+        data: null,
+      };
+    }
+
     return {
       status: 'success',
       message: this.translateMessage(message, language),
       lang: language,
       timestamp: new Date().toISOString(),
-      data: {
-        data,
-      },
+      data: wrap ? ({ data } as SingleItemData<T>) : (data as T),
     };
   }
 
@@ -179,7 +194,7 @@ export class ResponseUtil {
     data?: T,
     message: string = 'common.success',
     lang?: string,
-  ): StandardResponse<SingleItemData<T> | ArrayDataWithMeta<T> | null> {
+  ): StandardResponse<SingleItemData<T> | ArrayDataWithMeta<T> | T | null> {
     const language = this.getLang(lang);
     const translatedMessage = this.translateMessage(message, language);
 

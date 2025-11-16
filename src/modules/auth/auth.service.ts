@@ -54,6 +54,7 @@ export class AuthService extends BaseService {
         password: registerDto.password,
         firstName: registerDto.firstName,
         lastName: registerDto.lastName,
+        phone: registerDto.phone,
       });
 
       userId = user.id;
@@ -370,6 +371,17 @@ export class AuthService extends BaseService {
       .from('users')
       .update({ password_hash: newPasswordHash })
       .eq('id', userId);
+  }
+
+  async logout(userId: string): Promise<void> {
+    const supabase = this.getClient();
+
+    // Revoke all refresh tokens for this user (logout from all devices)
+    await supabase
+      .from('refresh_tokens')
+      .update({ is_revoked: true })
+      .eq('user_id', userId)
+      .eq('is_revoked', false);
   }
 
   async resendVerificationOTP(email: string): Promise<void> {

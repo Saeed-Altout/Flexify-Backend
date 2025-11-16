@@ -34,7 +34,12 @@ export class AuthController {
   ): Promise<StandardResponse<any>> {
     const result = await this.authService.register(registerDto);
     const lang = RequestUtil.getLanguage(req);
-    return ResponseUtil.successSingle(result, 'auth.register.success', lang);
+    return ResponseUtil.successSingle(
+      result,
+      'auth.register.success',
+      lang,
+      false,
+    );
   }
 
   @Post('login')
@@ -45,7 +50,12 @@ export class AuthController {
   ): Promise<StandardResponse<any>> {
     const result = await this.authService.login(loginDto);
     const lang = RequestUtil.getLanguage(req);
-    return ResponseUtil.successSingle(result, 'auth.login.success', lang);
+    return ResponseUtil.successSingle(
+      result,
+      'auth.login.success',
+      lang,
+      false,
+    );
   }
 
   @Post('refresh')
@@ -56,7 +66,12 @@ export class AuthController {
   ): Promise<StandardResponse<any>> {
     const result = await this.authService.refreshToken(refreshTokenDto);
     const lang = RequestUtil.getLanguage(req);
-    return ResponseUtil.successSingle(result, 'auth.refreshToken.success', lang);
+    return ResponseUtil.successSingle(
+      result,
+      'auth.refreshToken.success',
+      lang,
+      false,
+    );
   }
 
   @Post('forgot-password')
@@ -104,7 +119,11 @@ export class AuthController {
   ): Promise<StandardResponse<any>> {
     await this.authService.resendVerificationOTP(resendVerificationDto.email);
     const lang = RequestUtil.getLanguage(req);
-    return ResponseUtil.successSingle(null, 'auth.resendVerificationCode.success', lang);
+    return ResponseUtil.successSingle(
+      null,
+      'auth.resendVerificationCode.success',
+      lang,
+    );
   }
 
   @Get('me')
@@ -133,7 +152,23 @@ export class AuthController {
     }
     await this.authService.changePassword(userId, changePasswordDto);
     const lang = RequestUtil.getLanguage(req);
-    return ResponseUtil.successSingle(null, 'auth.changePassword.success', lang);
+    return ResponseUtil.successSingle(
+      null,
+      'auth.changePassword.success',
+      lang,
+    );
+  }
+
+  @Post('logout')
+  @UseGuards(JwtAuthGuard)
+  @HttpCode(HttpStatus.OK)
+  async logout(@Request() req: any): Promise<StandardResponse<any>> {
+    const userId = req.user?.sub || req.user?.id;
+    if (!userId) {
+      throw new UnauthorizedException('auth.user.notAuthenticated');
+    }
+    await this.authService.logout(userId);
+    const lang = RequestUtil.getLanguage(req);
+    return ResponseUtil.successSingle(null, 'auth.logout.success', lang);
   }
 }
-
