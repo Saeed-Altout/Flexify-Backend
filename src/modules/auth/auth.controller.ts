@@ -1,9 +1,12 @@
 import {
   Controller,
   Post,
+  Get,
   Body,
   HttpCode,
   HttpStatus,
+  Request,
+  UseGuards,
 } from '@nestjs/common';
 import { AuthService } from './auth.service';
 import { LoginDto } from './dto/login.dto';
@@ -13,6 +16,7 @@ import { ResetPasswordDto } from './dto/reset-password.dto';
 import { VerifyEmailDto } from './dto/verify-email.dto';
 import { RefreshTokenDto } from './dto/refresh-token.dto';
 import { ResendVerificationDto } from './dto/resend-verification.dto';
+import { JwtAuthGuard } from './guards/jwt-auth.guard';
 import { ResponseUtil, StandardResponse } from '../../core/utils/response';
 
 @Controller('auth')
@@ -69,6 +73,19 @@ export class AuthController {
   async resendVerification(@Body() resendVerificationDto: ResendVerificationDto): Promise<StandardResponse<any>> {
     await this.authService.resendVerificationOTP(resendVerificationDto.email);
     return ResponseUtil.success(null, 'Verification code sent successfully');
+  }
+
+  @Get('me')
+  @UseGuards(JwtAuthGuard)
+  @HttpCode(HttpStatus.OK)
+  async getCurrentUser(@Request() req: any): Promise<StandardResponse<any>> {
+    // Extract user ID from JWT token (from Authorization header)
+    const userId = req.user?.sub || req.user?.id;
+    if (!userId) {
+      throw new Error('User not authenticated');
+    }
+    const user = await this.authService.getCurrentUser(userId);
+    return ResponseUtil.success(user, 'Current user retrieved successfully');
   }
 }
 

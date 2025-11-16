@@ -339,6 +339,21 @@ export class AuthService {
       .eq('id', tokenData.id);
   }
 
+  async getCurrentUser(userId: string): Promise<IAuthResponse['user']> {
+    const user = await this.usersService.findOne(userId);
+    return {
+      id: user.id,
+      email: user.email,
+      firstName: user.firstName,
+      lastName: user.lastName,
+      avatarUrl: user.avatarUrl,
+      phone: user.phone,
+      isEmailVerified: user.isEmailVerified,
+      isActive: user.isActive,
+      role: user.role,
+    };
+  }
+
   async resendVerificationOTP(email: string): Promise<void> {
     const user = await this.usersService.findByEmail(email);
 
