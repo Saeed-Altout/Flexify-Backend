@@ -354,6 +354,46 @@ export class AuthService {
     };
   }
 
+  async changePassword(
+    userId: string,
+    changePasswordDto: { currentPassword: string; newPassword: string },
+  ): Promise<void> {
+    const supabase = this.getClient();
+
+    // Get user
+    const user = await this.usersService.findOne(userId);
+
+    // Get current password hash
+    const { data: userData } = await supabase
+      .from('users')
+      .select('password_hash')
+      .eq('id', userId)
+      .single();
+
+    if (!userData) {
+      throw new UnauthorizedException('User not found');
+    }
+
+    // Verify current password
+    const isPasswordValid = await bcrypt.compare(
+      changePasswordDto.currentPassword,
+      userData.password_hash,
+    );
+
+    if (!isPasswordValid) {
+      throw new UnauthorizedException('Current password is incorrect');
+    }
+
+    // Hash new password
+    const newPasswordHash = await bcrypt.hash(changePasswordDto.newPassword, 10);
+
+    // Update password
+    await supabase
+      .from('users')
+      .update({ password_hash: newPasswordHash })
+      .eq('id', userId);
+  }
+
   async resendVerificationOTP(email: string): Promise<void> {
     const user = await this.usersService.findByEmail(email);
 

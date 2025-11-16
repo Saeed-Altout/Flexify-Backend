@@ -16,6 +16,7 @@ import { ResetPasswordDto } from './dto/reset-password.dto';
 import { VerifyEmailDto } from './dto/verify-email.dto';
 import { RefreshTokenDto } from './dto/refresh-token.dto';
 import { ResendVerificationDto } from './dto/resend-verification.dto';
+import { ChangePasswordDto } from './dto/change-password.dto';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
 import { ResponseUtil, StandardResponse } from '../../core/utils/response';
 
@@ -86,6 +87,21 @@ export class AuthController {
     }
     const user = await this.authService.getCurrentUser(userId);
     return ResponseUtil.success(user, 'Current user retrieved successfully');
+  }
+
+  @Post('change-password')
+  @UseGuards(JwtAuthGuard)
+  @HttpCode(HttpStatus.OK)
+  async changePassword(
+    @Request() req: any,
+    @Body() changePasswordDto: ChangePasswordDto,
+  ): Promise<StandardResponse<any>> {
+    const userId = req.user?.sub || req.user?.id;
+    if (!userId) {
+      throw new Error('User not authenticated');
+    }
+    await this.authService.changePassword(userId, changePasswordDto);
+    return ResponseUtil.success(null, 'Password changed successfully');
   }
 }
 

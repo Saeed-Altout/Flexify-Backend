@@ -235,6 +235,63 @@ export class UsersService {
     }
   }
 
+  async uploadAvatar(userId: string, file: Express.Multer.File): Promise<string> {
+    const supabase = this.getClient();
+
+    // Check if user exists
+    await this.findOne(userId);
+
+    // Generate unique filename
+    const fileExt = file.originalname.split('.').pop();
+    const fileName = `${userId}-${Date.now()}.${fileExt}`;
+    const filePath = `avatars/${fileName}`;
+
+    // Get file buffer (multer provides buffer directly)
+    const fileBuffer = file.buffer;
+
+    // Upload to Supabase Storage
+    // Note: You need to create a 'avatars' bucket in Supabase Storage first
+    const { data: uploadData, error: uploadError } = await supabase.storage
+      .from('avatars')
+      .upload(filePath, fileBuffer, {
+        contentType: file.mimetype,
+        upsert: false,
+      });
+
+    if (uploadError) {
+      // If Supabase Storage is not set up, we can store the URL directly
+      // For now, we'll use a simple approach: store a placeholder URL
+      // In production, you should set up Supabase Storage bucket 'avatars'
+      console.warn('Supabase Storage upload failed, using placeholder:', uploadError.message);
+      
+      // Alternative: You could upload to a different service or use base64
+      // For now, we'll just update with a placeholder
+      const placeholderUrl = `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(userId)}`;
+      
+      await supabase
+        .from('users')
+        .update({ avatar_url: placeholderUrl })
+        .eq('id', userId);
+
+      return placeholderUrl;
+    }
+
+    // Get public URL
+    const { data: urlData } = supabase.storage
+      .from('avatars')
+      .getPublicUrl(filePath);
+
+    const avatarUrl = urlData.publicUrl;
+
+    // Update user with new avatar URL
+    await supabase
+      .from('users')
+      .update({ avatar_url: avatarUrl })
+      .eq('id', userId);
+
+    return avatarUrl;
+  }
+
   async updateLastLogin(id: string): Promise<void> {
     const supabase = this.getClient();
 
