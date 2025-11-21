@@ -40,6 +40,7 @@ export class UsersController {
   }
 
   @Get()
+  @UseGuards(JwtAuthGuard)
   async findAll(
     @Query() queryDto: QueryUserDto,
     @Request() req: any,
@@ -57,6 +58,7 @@ export class UsersController {
   }
 
   @Get(':id')
+  @UseGuards(JwtAuthGuard)
   async findOne(
     @Param('id') id: string,
     @Request() req: any,
