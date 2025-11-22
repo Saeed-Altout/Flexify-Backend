@@ -27,9 +27,9 @@ async function bootstrap() {
 
   // Enable CORS with proper configuration
   const allowedOrigins = configService
-    .get<string>('CORS_ORIGINS', 'http://localhost:3001')
+    .get<string>('CORS_ORIGINS', 'https://flexifypro.vercel.app/')
     .split(',');
-  
+
   app.enableCors({
     origin: (origin, callback) => {
       if (!origin || allowedOrigins.includes(origin)) {
@@ -68,6 +68,8 @@ async function bootstrap() {
   await app.listen(port);
 
   logger.log(`🚀 Application is running on: http://localhost:${port}/api`);
-  logger.log(`📝 Environment: ${configService.get('NODE_ENV') || 'development'}`);
+  logger.log(
+    `📝 Environment: ${configService.get('NODE_ENV') || 'development'}`,
+  );
 }
 bootstrap();
