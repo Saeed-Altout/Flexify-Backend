@@ -8,6 +8,10 @@ import { UsersModule } from './modules/users/users.module';
 import { ProjectsModule } from './modules/projects/projects.module';
 import { TechnologiesModule } from './modules/technologies/technologies.module';
 import { CategoriesModule } from './modules/categories/categories.module';
+import { InquiryTypesModule } from './modules/inquiry-types/inquiry-types.module';
+import { ContactsModule } from './modules/contacts/contacts.module';
+import { TestimonialsModule } from './modules/testimonials/testimonials.module';
+import { ServicesModule } from './modules/services/services.module';
 import { SupabaseService } from './core/lib/supabase/supabase.service';
 
 @Module({
@@ -41,6 +45,10 @@ import { SupabaseService } from './core/lib/supabase/supabase.service';
     ProjectsModule,
     TechnologiesModule,
     CategoriesModule,
+    InquiryTypesModule,
+    ContactsModule,
+    TestimonialsModule,
+    ServicesModule,
   ],
   providers: [SupabaseService],
 })
