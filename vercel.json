@@ -1,18 +1,28 @@
+
 {
   "version": 2,
   "buildCommand": "npm run build",
   "outputDirectory": "dist",
   "installCommand": "npm install",
-  "framework": null,
-  "functions": {
-    "api/index.ts": {
-      "includeFiles": "dist/**"
+  "framework": "nestjs",
+  "builds": [
+    {
+      "src": "src/main.ts",
+      "use": "@vercel/node",
+      "config": {
+        "includeFiles": ["src/**/*"],
+        "maxLambdaSize": "15mb"
+      }
     }
-  },
+  ],
   "routes": [
     {
+      "src": "/api/(.*)",
+      "dest": "src/main.ts"
+    },
+    {
       "src": "/(.*)",
-      "dest": "/api/index.ts"
+      "dest": "src/main.ts"
     }
   ],
   "env": {
