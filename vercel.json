@@ -2,18 +2,25 @@
   "version": 2,
   "builds": [
     {
-      "src": "api/index.ts",
-      "use": "@vercel/node"
+      "src": "src/main.ts",
+      "use": "@vercel/node",
+      "config": {
+        "includeFiles": ["src/**/*"],
+        "maxLambdaSize": "15mb"
+      }
     }
   ],
   "routes": [
     {
+      "src": "/api/(.*)",
+      "dest": "src/main.ts"
+    },
+    {
       "src": "/(.*)",
-      "dest": "/api/index.ts"
+      "dest": "src/main.ts"
     }
   ],
   "env": {
     "NODE_ENV": "production"
   }
 }
-
