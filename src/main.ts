@@ -27,7 +27,10 @@ async function bootstrap() {
 
   // Enable CORS with proper configuration
   const allowedOrigins = configService
-    .get<string>('CORS_ORIGINS', 'https://flexifypro.vercel.app/')
+    .get<string>(
+      'CORS_ORIGINS',
+      'https://flexifypro.vercel.app/,http://localhost:3001',
+    )
     .split(',');
 
   app.enableCors({
