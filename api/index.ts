@@ -1,20 +1,38 @@
 import { NestFactory } from '@nestjs/core';
 import { ExpressAdapter } from '@nestjs/platform-express';
-import { ValidationPipe, Logger } from '@nestjs/common';
+import { ValidationPipe } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { AppModule } from '../src/app.module';
 import express from 'express';
 import serverless from 'serverless-http';
 import cookieParser from 'cookie-parser';
 import helmet from 'helmet';
-import { HttpExceptionFilter } from '../src/core/filters/http-exception.filter';
-import { TransformInterceptor } from '../src/core/interceptors/transform.interceptor';
+
+// Dynamic imports to handle both dev and production builds
+const getModules = () => {
+  try {
+    // Try production build first
+    return {
+      AppModule: require('../dist/app.module').AppModule,
+      HttpExceptionFilter: require('../dist/core/filters/http-exception.filter').HttpExceptionFilter,
+      TransformInterceptor: require('../dist/core/interceptors/transform.interceptor').TransformInterceptor,
+    };
+  } catch {
+    // Fallback to source for development
+    return {
+      AppModule: require('../src/app.module').AppModule,
+      HttpExceptionFilter: require('../src/core/filters/http-exception.filter').HttpExceptionFilter,
+      TransformInterceptor: require('../src/core/interceptors/transform.interceptor').TransformInterceptor,
+    };
+  }
+};
 
 let cachedApp: any;
 let cachedHandler: any;
 
 async function bootstrap() {
   if (!cachedApp) {
+    const { AppModule, HttpExceptionFilter, TransformInterceptor } = getModules();
+    
     const expressApp = express();
     const app = await NestFactory.create(
       AppModule,
@@ -22,48 +40,40 @@ async function bootstrap() {
       {
         logger: process.env.NODE_ENV === 'production' 
           ? ['error', 'warn'] 
-          : ['log', 'error', 'warn', 'debug', 'verbose'],
+          : ['log', 'error', 'warn'],
       }
     );
 
     const configService = app.get(ConfigService);
 
-    // Security: Helmet for HTTP headers
-    app.use(helmet());
+    // Security: Helmet with relaxed settings for serverless
+    app.use(helmet({
+      contentSecurityPolicy: false,
+      crossOriginEmbedderPolicy: false,
+    }));
 
-    // Cookie parser middleware
+    // Cookie parser
     app.use(cookieParser());
 
-    // Enable CORS with proper configuration
-    const allowedOrigins = configService
-      .get<string>('CORS_ORIGINS', '*')
-      .split(',');
+    // CORS configuration
+    const allowedOrigins = (configService.get<string>('CORS_ORIGINS') || '*')
+      .split(',')
+      .map(origin => origin.trim());
     
     app.enableCors({
       origin: (origin, callback) => {
-        // Allow requests with no origin (like mobile apps or curl requests)
-        if (!origin) {
-          return callback(null, true);
+        if (!origin || allowedOrigins.includes('*') || allowedOrigins.includes(origin)) {
+          callback(null, true);
+        } else {
+          callback(new Error('Not allowed by CORS'));
         }
-        
-        // Allow all origins if '*' is in the list
-        if (allowedOrigins.includes('*')) {
-          return callback(null, true);
-        }
-        
-        // Check if origin is in allowed list
-        if (allowedOrigins.includes(origin)) {
-          return callback(null, true);
-        }
-        
-        callback(new Error('Not allowed by CORS'));
       },
       credentials: true,
       methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
       allowedHeaders: ['Content-Type', 'Authorization', 'Accept-Language'],
     });
 
-    // Global validation pipe with strict validation
+    // Global validation pipe
     app.useGlobalPipes(
       new ValidationPipe({
         whitelist: true,
@@ -84,7 +94,7 @@ async function bootstrap() {
     // Global prefix
     app.setGlobalPrefix('api');
 
-    // Initialize the application
+    // Initialize
     await app.init();
     
     cachedApp = expressApp;
@@ -98,7 +108,21 @@ async function bootstrap() {
 
 // Vercel serverless function handler
 export default async function handler(event: any, context: any) {
-  const serverlessHandler = await bootstrap();
-  return serverlessHandler(event, context);
+  try {
+    const serverlessHandler = await bootstrap();
+    return await serverlessHandler(event, context);
+  } catch (error: any) {
+    console.error('Handler error:', error);
+    return {
+      statusCode: 500,
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        status: 'error',
+        message: 'Internal server error',
+        ...(process.env.NODE_ENV === 'development' && { error: error?.message, stack: error?.stack }),
+      }),
+    };
+  }
 }
-

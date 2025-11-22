@@ -1,0 +1,10 @@
+node_modules
+test
+*.spec.ts
+*.test.ts
+.env
+.env.local
+coverage
+.vscode
+.idea
+
