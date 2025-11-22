@@ -5,6 +5,9 @@ import { ThrottlerModule } from '@nestjs/throttler';
 import { EnvironmentVariables } from './config/env.validation';
 import { AuthModule } from './modules/auth/auth.module';
 import { UsersModule } from './modules/users/users.module';
+import { ProjectsModule } from './modules/projects/projects.module';
+import { TechnologiesModule } from './modules/technologies/technologies.module';
+import { CategoriesModule } from './modules/categories/categories.module';
 import { SupabaseService } from './core/lib/supabase/supabase.service';
 
 @Module({
@@ -35,6 +38,9 @@ import { SupabaseService } from './core/lib/supabase/supabase.service';
     }),
     AuthModule,
     UsersModule,
+    ProjectsModule,
+    TechnologiesModule,
+    CategoriesModule,
   ],
   providers: [SupabaseService],
 })
