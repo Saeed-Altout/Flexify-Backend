@@ -421,3 +421,91 @@ USING (
   )
 );
 
+-- =====================================================
+-- STORAGE BUCKET for Testimonial Avatars
+-- =====================================================
+
+-- Create testimonial-avatars bucket
+INSERT INTO storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
+VALUES (
+  'testimonial-avatars',
+  'testimonial-avatars',
+  true,
+  5242880, -- 5MB limit
+  ARRAY['image/jpeg', 'image/jpg', 'image/png', 'image/webp']
+)
+ON CONFLICT (id) DO NOTHING;
+
+-- =====================================================
+-- STORAGE POLICIES for Testimonial Avatars
+-- =====================================================
+
+-- Policy: Allow authenticated users to upload testimonial avatars
+CREATE POLICY "Allow authenticated users to upload testimonial avatars"
+ON storage.objects FOR INSERT
+TO authenticated
+WITH CHECK (bucket_id = 'testimonial-avatars');
+
+-- Policy: Allow public read access to testimonial avatars
+CREATE POLICY "Allow public read access to testimonial avatars"
+ON storage.objects FOR SELECT
+TO public
+USING (bucket_id = 'testimonial-avatars');
+
+-- Policy: Allow users to update testimonial avatars
+CREATE POLICY "Allow users to update testimonial avatars"
+ON storage.objects FOR UPDATE
+TO authenticated
+USING (bucket_id = 'testimonial-avatars')
+WITH CHECK (bucket_id = 'testimonial-avatars');
+
+-- Policy: Allow users to delete testimonial avatars
+CREATE POLICY "Allow users to delete testimonial avatars"
+ON storage.objects FOR DELETE
+TO authenticated
+USING (bucket_id = 'testimonial-avatars');
+
+-- =====================================================
+-- STORAGE BUCKET for Service Images
+-- =====================================================
+
+-- Create service-images bucket
+INSERT INTO storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
+VALUES (
+  'service-images',
+  'service-images',
+  true,
+  5242880, -- 5MB limit
+  ARRAY['image/jpeg', 'image/jpg', 'image/png', 'image/webp']
+)
+ON CONFLICT (id) DO NOTHING;
+
+-- =====================================================
+-- STORAGE POLICIES for Service Images
+-- =====================================================
+
+-- Policy: Allow authenticated users to upload service images
+CREATE POLICY "Allow authenticated users to upload service images"
+ON storage.objects FOR INSERT
+TO authenticated
+WITH CHECK (bucket_id = 'service-images');
+
+-- Policy: Allow public read access to service images
+CREATE POLICY "Allow public read access to service images"
+ON storage.objects FOR SELECT
+TO public
+USING (bucket_id = 'service-images');
+
+-- Policy: Allow users to update service images
+CREATE POLICY "Allow users to update service images"
+ON storage.objects FOR UPDATE
+TO authenticated
+USING (bucket_id = 'service-images')
+WITH CHECK (bucket_id = 'service-images');
+
+-- Policy: Allow users to delete service images
+CREATE POLICY "Allow users to delete service images"
+ON storage.objects FOR DELETE
+TO authenticated
+USING (bucket_id = 'service-images');
+

@@ -259,5 +259,53 @@ export class TestimonialsService extends BaseService {
       })),
     };
   }
+
+  /**
+   * Upload testimonial avatar
+   */
+  async uploadAvatar(
+    testimonialId: string,
+    file: Express.Multer.File,
+  ): Promise<string> {
+    const supabase = this.getClient();
+
+    // Check if testimonial exists
+    await this.findOne(testimonialId);
+
+    // Generate unique filename
+    const fileExt = file.originalname.split('.').pop() || 'jpg';
+    const fileName = `${testimonialId}-${Date.now()}.${fileExt}`;
+    const filePath = `avatars/${fileName}`;
+
+    // Upload to Supabase Storage
+    const { error: uploadError } = await supabase.storage
+      .from('testimonial-avatars')
+      .upload(filePath, file.buffer, {
+        contentType: file.mimetype,
+        upsert: false,
+      });
+
+    if (uploadError) {
+      throw new BadRequestException('testimonials.avatar.uploadFailed');
+    }
+
+    // Get public URL
+    const { data: urlData } = supabase.storage
+      .from('testimonial-avatars')
+      .getPublicUrl(filePath);
+    const avatarUrl = urlData.publicUrl;
+
+    // Update testimonial with avatar URL
+    const { error: updateError } = await supabase
+      .from('testimonials')
+      .update({ avatar_url: avatarUrl })
+      .eq('id', testimonialId);
+
+    if (updateError) {
+      throw new BadRequestException('testimonials.avatar.updateFailed');
+    }
+
+    return avatarUrl;
+  }
 }
 

@@ -6,17 +6,28 @@ import {
 import { BaseService } from '../../core/services/base.service';
 import { CreateContactDto } from './dto/create-contact.dto';
 import { UpdateContactDto } from './dto/update-contact.dto';
-import { QueryContactDto, ContactSortBy, SortOrder } from './dto/query-contact.dto';
 import {
-  IContact,
-  IContactsListResponse,
-} from './types/contact.types';
+  QueryContactDto,
+  ContactSortBy,
+  SortOrder,
+} from './dto/query-contact.dto';
+import { ReplyContactDto } from './dto/reply-contact.dto';
+import { IContact, IContactsListResponse } from './types/contact.types';
 import { ContactStatus } from './enums/contact-status.enum';
+import { MailerService } from '../mailer/mailer.service';
+import { SupabaseService } from '../../core/lib/supabase/supabase.service';
 
 @Injectable()
 export class ContactsService extends BaseService {
   private readonly DEFAULT_PAGE = 1;
   private readonly DEFAULT_LIMIT = 10;
+
+  constructor(
+    protected readonly supabaseService: SupabaseService,
+    private readonly mailerService: MailerService,
+  ) {
+    super(supabaseService);
+  }
 
   /**
    * Create a new contact
@@ -35,14 +46,16 @@ export class ContactsService extends BaseService {
         status: createDto.status || ContactStatus.NEW,
         inquiry_type_id: createDto.inquiryTypeId || null,
       })
-      .select(`
+      .select(
+        `
         *,
         inquiryType:inquiry_types(
           id,
           slug,
           translations:inquiry_type_translations(locale, name)
         )
-      `)
+      `,
+      )
       .single();
 
     if (error || !contact) {
@@ -67,20 +80,23 @@ export class ContactsService extends BaseService {
       sortOrder = SortOrder.DESC,
     } = queryDto;
 
-    let query = supabase
-      .from('contacts')
-      .select(`
+    let query = supabase.from('contacts').select(
+      `
         *,
         inquiryType:inquiry_types(
           id,
           slug,
           translations:inquiry_type_translations(locale, name)
         )
-      `, { count: 'exact' });
+      `,
+      { count: 'exact' },
+    );
 
     // Search filter
     if (search) {
-      query = query.or(`name.ilike.%${search}%,email.ilike.%${search}%,subject.ilike.%${search}%,message.ilike.%${search}%`);
+      query = query.or(
+        `name.ilike.%${search}%,email.ilike.%${search}%,subject.ilike.%${search}%,message.ilike.%${search}%`,
+      );
     }
 
     // Status filter
@@ -126,14 +142,16 @@ export class ContactsService extends BaseService {
 
     const { data, error } = await supabase
       .from('contacts')
-      .select(`
+      .select(
+        `
         *,
         inquiryType:inquiry_types(
           id,
           slug,
           translations:inquiry_type_translations(locale, name)
         )
-      `)
+      `,
+      )
       .eq('id', id)
       .single();
 
@@ -160,7 +178,8 @@ export class ContactsService extends BaseService {
     if (updateDto.subject !== undefined) updateData.subject = updateDto.subject;
     if (updateDto.message !== undefined) updateData.message = updateDto.message;
     if (updateDto.status !== undefined) updateData.status = updateDto.status;
-    if (updateDto.inquiryTypeId !== undefined) updateData.inquiry_type_id = updateDto.inquiryTypeId;
+    if (updateDto.inquiryTypeId !== undefined)
+      updateData.inquiry_type_id = updateDto.inquiryTypeId;
 
     const { error } = await supabase
       .from('contacts')
@@ -183,14 +202,30 @@ export class ContactsService extends BaseService {
     // Check if exists
     await this.findOne(id);
 
-    const { error } = await supabase
-      .from('contacts')
-      .delete()
-      .eq('id', id);
+    const { error } = await supabase.from('contacts').delete().eq('id', id);
 
     if (error) {
       throw new BadRequestException('contacts.delete.failed');
     }
+  }
+
+  /**
+   * Reply to a contact
+   */
+  async reply(id: string, replyDto: ReplyContactDto): Promise<void> {
+    const contact = await this.findOne(id);
+
+    // Send reply email
+    await this.mailerService.sendContactReplyEmail(contact.email, {
+      contactName: contact.name,
+      originalSubject: contact.subject,
+      originalMessage: contact.message,
+      replyMessage: replyDto.message,
+      replySubject: replyDto.subject,
+    });
+
+    // Update contact status to 'replied'
+    await this.update(id, { status: ContactStatus.REPLIED });
   }
 
   /**
@@ -208,12 +243,13 @@ export class ContactsService extends BaseService {
       inquiryTypeId: data.inquiry_type_id,
       createdAt: data.created_at,
       updatedAt: data.updated_at,
-      inquiryType: data.inquiryType ? {
-        id: data.inquiryType.id,
-        slug: data.inquiryType.slug,
-        translations: data.inquiryType.translations || [],
-      } : undefined,
+      inquiryType: data.inquiryType
+        ? {
+            id: data.inquiryType.id,
+            slug: data.inquiryType.slug,
+            translations: data.inquiryType.translations || [],
+          }
+        : undefined,
     };
   }
 }
-

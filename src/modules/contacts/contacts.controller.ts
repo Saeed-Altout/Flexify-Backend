@@ -16,6 +16,7 @@ import { ContactsService } from './contacts.service';
 import { CreateContactDto } from './dto/create-contact.dto';
 import { UpdateContactDto } from './dto/update-contact.dto';
 import { QueryContactDto } from './dto/query-contact.dto';
+import { ReplyContactDto } from './dto/reply-contact.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { ResponseUtil, StandardResponse } from '../../core/utils/response';
 import { RequestUtil } from '../../core/utils/request.util';
@@ -80,6 +81,19 @@ export class ContactsController {
     await this.contactsService.remove(id);
     const lang = RequestUtil.getLanguage(req);
     return ResponseUtil.successSingle(null, 'contacts.delete.success', lang);
+  }
+
+  @Post(':id/reply')
+  @UseGuards(JwtAuthGuard)
+  @HttpCode(HttpStatus.OK)
+  async reply(
+    @Param('id') id: string,
+    @Body() replyDto: ReplyContactDto,
+    @Request() req: any,
+  ): Promise<StandardResponse<any>> {
+    await this.contactsService.reply(id, replyDto);
+    const lang = RequestUtil.getLanguage(req);
+    return ResponseUtil.successSingle(null, 'contacts.reply.success', lang);
   }
 }
 

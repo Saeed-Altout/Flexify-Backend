@@ -11,7 +11,11 @@ import {
   HttpStatus,
   UseGuards,
   Request,
+  UseInterceptors,
+  UploadedFile,
+  BadRequestException,
 } from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
 import { ServicesService } from './services.service';
 import { CreateServiceDto } from './dto/create-service.dto';
 import { UpdateServiceDto } from './dto/update-service.dto';
@@ -86,6 +90,41 @@ export class ServicesController {
     await this.servicesService.remove(id);
     const lang = RequestUtil.getLanguage(req);
     return ResponseUtil.successSingle(null, 'services.delete.success', lang);
+  }
+
+  // ========================================
+  // SERVICE IMAGE
+  // ========================================
+
+  @Post(':id/image')
+  @UseGuards(JwtAuthGuard)
+  @UseInterceptors(
+    FileInterceptor('file', {
+      storage: undefined, // Use memory storage for buffer
+      limits: {
+        fileSize: 5 * 1024 * 1024, // 5MB limit
+      },
+      fileFilter: (req, file, cb) => {
+        if (file.mimetype.startsWith('image/')) {
+          cb(null, true);
+        } else {
+          cb(new Error('Only image files are allowed'), false);
+        }
+      },
+    }),
+  )
+  async uploadImage(
+    @Param('id') id: string,
+    @UploadedFile() file: Express.Multer.File,
+    @Request() req: any,
+  ): Promise<StandardResponse<any>> {
+    if (!file) {
+      throw new BadRequestException('No file uploaded');
+    }
+
+    const imageUrl = await this.servicesService.uploadImage(id, file);
+    const lang = RequestUtil.getLanguage(req);
+    return ResponseUtil.successSingle({ imageUrl }, 'services.image.upload.success', lang);
   }
 }
 

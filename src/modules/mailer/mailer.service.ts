@@ -111,6 +111,41 @@ export class MailerService {
     });
   }
 
+  async sendContactReplyEmail(
+    email: string,
+    data: {
+      contactName: string;
+      originalSubject: string | null;
+      originalMessage: string;
+      replyMessage: string;
+      replySubject?: string;
+    },
+  ): Promise<void> {
+    try {
+      const subject = data.replySubject || `Re: ${data.originalSubject || 'Your Inquiry'}`;
+
+      await this.mailer.sendMail({
+        to: email,
+        subject,
+        template: 'contact-reply',
+        context: {
+          contactName: data.contactName,
+          originalSubject: data.originalSubject || 'Your Inquiry',
+          originalMessage: data.originalMessage,
+          replyMessage: data.replyMessage,
+        },
+      });
+      this.logger.log(`Contact reply email sent successfully to ${email}`);
+    } catch (error) {
+      this.logger.error(
+        `Failed to send contact reply email to ${email}:`,
+        error instanceof Error ? error.message : String(error),
+      );
+      this.logger.error('Error details:', error);
+      throw error;
+    }
+  }
+
   private getFullName(
     firstName: string | null,
     lastName: string | null,

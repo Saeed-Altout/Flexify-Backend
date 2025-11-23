@@ -79,6 +79,37 @@ export class ServicesService extends BaseService {
   }
 
   /**
+   * Upload service image
+   */
+  async uploadImage(serviceId: string, file: Express.Multer.File): Promise<string> {
+    const supabase = this.getClient();
+    await this.findOne(serviceId); // Ensure service exists
+
+    const fileExt = file.originalname.split('.').pop() || 'jpg';
+    const fileName = `${serviceId}-${Date.now()}.${fileExt}`;
+    const filePath = `services/${fileName}`;
+
+    const { error: uploadError } = await supabase.storage
+      .from('service-images')
+      .upload(filePath, file.buffer, {
+        contentType: file.mimetype,
+        upsert: false,
+      });
+
+    if (uploadError) {
+      throw new BadRequestException('services.image.uploadFailed');
+    }
+
+    const { data: urlData } = supabase.storage.from('service-images').getPublicUrl(filePath);
+    const imageUrl = urlData.publicUrl;
+
+    // Update service with new image URL
+    await this.update(serviceId, { imageUrl });
+
+    return imageUrl;
+  }
+
+  /**
    * Find all services with filters and pagination
    */
   async findAll(queryDto: QueryServiceDto): Promise<IServicesListResponse> {

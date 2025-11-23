@@ -11,7 +11,10 @@ import {
   HttpStatus,
   UseGuards,
   Request,
+  UseInterceptors,
+  UploadedFile,
 } from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
 import { TestimonialsService } from './testimonials.service';
 import { CreateTestimonialDto } from './dto/create-testimonial.dto';
 import { UpdateTestimonialDto } from './dto/update-testimonial.dto';
@@ -79,6 +82,41 @@ export class TestimonialsController {
     await this.testimonialsService.remove(id);
     const lang = RequestUtil.getLanguage(req);
     return ResponseUtil.successSingle(null, 'testimonials.delete.success', lang);
+  }
+
+  // ========================================
+  // TESTIMONIAL AVATAR UPLOAD
+  // ========================================
+
+  @Post(':id/avatar')
+  @UseGuards(JwtAuthGuard)
+  @UseInterceptors(
+    FileInterceptor('file', {
+      storage: undefined,
+      limits: {
+        fileSize: 5 * 1024 * 1024, // 5MB limit
+      },
+      fileFilter: (req, file, cb) => {
+        if (file.mimetype.startsWith('image/')) {
+          cb(null, true);
+        } else {
+          cb(new Error('Only image files are allowed'), false);
+        }
+      },
+    }),
+  )
+  async uploadAvatar(
+    @Param('id') id: string,
+    @UploadedFile() file: Express.Multer.File,
+    @Request() req: any,
+  ): Promise<StandardResponse<any>> {
+    if (!file) {
+      throw new Error('No file uploaded');
+    }
+
+    const avatarUrl = await this.testimonialsService.uploadAvatar(id, file);
+    const lang = RequestUtil.getLanguage(req);
+    return ResponseUtil.successSingle({ avatarUrl }, 'testimonials.avatar.upload.success', lang);
   }
 }
 
