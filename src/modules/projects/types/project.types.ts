@@ -56,7 +56,7 @@ export interface ITechnology {
   slug: string;
   name: string;
   icon: string | null;
-  color: string | null;
+  description: string | null;
   category: string | null;
   orderIndex: number;
   createdAt: string;
@@ -66,10 +66,9 @@ export interface ITechnology {
 export interface ICategory {
   id: string;
   slug: string;
-  nameEn: string;
-  nameAr: string;
+  name: string;
+  description: string | null;
   icon: string | null;
-  color: string | null;
   orderIndex: number;
   createdAt: string;
   updatedAt: string;

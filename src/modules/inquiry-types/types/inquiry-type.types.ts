@@ -12,7 +12,6 @@ export interface IInquiryType {
   id: string;
   slug: string;
   icon: string | null;
-  color: string | null;
   orderIndex: number;
   isActive: boolean;
   createdAt: string;

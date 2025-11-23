@@ -41,7 +41,6 @@ export class ServicesService extends BaseService {
         slug: createDto.slug,
         icon: createDto.icon || null,
         image_url: createDto.imageUrl || null,
-        color: createDto.color || null,
         order_index: createDto.orderIndex || 0,
         is_featured: createDto.isFeatured || false,
         is_active: createDto.isActive !== undefined ? createDto.isActive : true,
@@ -240,7 +239,6 @@ export class ServicesService extends BaseService {
     if (updateDto.slug !== undefined) updateData.slug = updateDto.slug;
     if (updateDto.icon !== undefined) updateData.icon = updateDto.icon;
     if (updateDto.imageUrl !== undefined) updateData.image_url = updateDto.imageUrl;
-    if (updateDto.color !== undefined) updateData.color = updateDto.color;
     if (updateDto.orderIndex !== undefined) updateData.order_index = updateDto.orderIndex;
     if (updateDto.isFeatured !== undefined) updateData.is_featured = updateDto.isFeatured;
     if (updateDto.isActive !== undefined) updateData.is_active = updateDto.isActive;
@@ -319,7 +317,6 @@ export class ServicesService extends BaseService {
       slug: data.slug,
       icon: data.icon,
       imageUrl: data.image_url,
-      color: data.color,
       orderIndex: data.order_index,
       isFeatured: data.is_featured,
       isActive: data.is_active,

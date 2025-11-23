@@ -812,10 +812,9 @@ export class ProjectsService extends BaseService {
         .map((pc: any) => ({
           id: pc.categories.id,
           slug: pc.categories.slug,
-          nameEn: pc.categories.name_en,
-          nameAr: pc.categories.name_ar,
+          name: pc.categories.name,
+          description: pc.categories.description,
           icon: pc.categories.icon,
-          color: pc.categories.color,
           orderIndex: pc.categories.order_index,
           createdAt: pc.categories.created_at,
           updatedAt: pc.categories.updated_at,

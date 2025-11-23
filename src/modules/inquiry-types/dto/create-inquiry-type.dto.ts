@@ -38,11 +38,6 @@ export class CreateInquiryTypeDto {
   icon?: string;
 
   @IsOptional()
-  @IsString()
-  @MaxLength(7)
-  color?: string;
-
-  @IsOptional()
   @IsNumber()
   orderIndex?: number;
 

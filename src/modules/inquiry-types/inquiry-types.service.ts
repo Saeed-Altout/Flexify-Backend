@@ -40,7 +40,6 @@ export class InquiryTypesService extends BaseService {
       .insert({
         slug: createDto.slug,
         icon: createDto.icon || null,
-        color: createDto.color || null,
         order_index: createDto.orderIndex || 0,
         is_active: createDto.isActive !== undefined ? createDto.isActive : true,
       })
@@ -189,7 +188,6 @@ export class InquiryTypesService extends BaseService {
     const updateData: any = {};
     if (updateDto.slug !== undefined) updateData.slug = updateDto.slug;
     if (updateDto.icon !== undefined) updateData.icon = updateDto.icon;
-    if (updateDto.color !== undefined) updateData.color = updateDto.color;
     if (updateDto.orderIndex !== undefined) updateData.order_index = updateDto.orderIndex;
     if (updateDto.isActive !== undefined) updateData.is_active = updateDto.isActive;
 
@@ -262,7 +260,6 @@ export class InquiryTypesService extends BaseService {
       id: data.id,
       slug: data.slug,
       icon: data.icon,
-      color: data.color,
       orderIndex: data.order_index,
       isActive: data.is_active,
       createdAt: data.created_at,

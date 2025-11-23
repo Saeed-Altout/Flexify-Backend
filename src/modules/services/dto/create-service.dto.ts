@@ -61,11 +61,6 @@ export class CreateServiceDto {
   imageUrl?: string;
 
   @IsOptional()
-  @IsString()
-  @MaxLength(7)
-  color?: string;
-
-  @IsOptional()
   @IsNumber()
   orderIndex?: number;
 
