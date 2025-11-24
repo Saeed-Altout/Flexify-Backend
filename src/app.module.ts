@@ -12,6 +12,7 @@ import { InquiryTypesModule } from './modules/inquiry-types/inquiry-types.module
 import { ContactsModule } from './modules/contacts/contacts.module';
 import { TestimonialsModule } from './modules/testimonials/testimonials.module';
 import { ServicesModule } from './modules/services/services.module';
+import { SiteSettingsModule } from './modules/site-settings/site-settings.module';
 import { SupabaseService } from './core/lib/supabase/supabase.service';
 
 @Module({
@@ -49,6 +50,7 @@ import { SupabaseService } from './core/lib/supabase/supabase.service';
     ContactsModule,
     TestimonialsModule,
     ServicesModule,
+    SiteSettingsModule,
   ],
   providers: [SupabaseService],
 })
