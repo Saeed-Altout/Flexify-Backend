@@ -1,11 +1,10 @@
 import {
   Controller,
   Get,
+  Patch,
   Post,
   Body,
-  Patch,
   Param,
-  Delete,
   HttpCode,
   HttpStatus,
   UseGuards,
@@ -16,8 +15,6 @@ import {
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { SiteSettingsService } from './site-settings.service';
-import { CreateNavbarLinkDto } from './dto/create-navbar-link.dto';
-import { UpdateNavbarLinkDto } from './dto/update-navbar-link.dto';
 import {
   UpdateSiteSettingDto,
   UpdateSiteSettingTranslationDto,
@@ -33,88 +30,6 @@ import { RequestUtil } from '../../core/utils/request.util';
 @Controller('site-settings')
 export class SiteSettingsController {
   constructor(private readonly siteSettingsService: SiteSettingsService) {}
-
-  // =====================================================
-  // NAVBAR LINKS
-  // =====================================================
-
-  @Get('navbar-links')
-  async getNavbarLinks(@Request() req: any): Promise<StandardResponse<any>> {
-    const lang = RequestUtil.getLanguage(req);
-    const locale = req.query.locale as string;
-    const links = await this.siteSettingsService.getNavbarLinks(locale);
-    return ResponseUtil.successList(
-      links,
-      links.length,
-      1,
-      links.length,
-      'siteSettings.navbarLinks.fetchSuccess',
-      lang,
-    );
-  }
-
-  @Get('navbar-links/all')
-  @UseGuards(JwtAuthGuard)
-  async getAllNavbarLinks(@Request() req: any): Promise<StandardResponse<any>> {
-    const lang = RequestUtil.getLanguage(req);
-    const links = await this.siteSettingsService.getAllNavbarLinks();
-    return ResponseUtil.successList(
-      links,
-      links.length,
-      1,
-      links.length,
-      'siteSettings.navbarLinks.fetchSuccess',
-      lang,
-    );
-  }
-
-  @Post('navbar-links')
-  @UseGuards(JwtAuthGuard)
-  @HttpCode(HttpStatus.CREATED)
-  async createNavbarLink(
-    @Body() createDto: CreateNavbarLinkDto,
-    @Request() req: any,
-  ): Promise<StandardResponse<any>> {
-    const lang = RequestUtil.getLanguage(req);
-    const link = await this.siteSettingsService.createNavbarLink(createDto);
-    return ResponseUtil.successSingle(
-      link,
-      'siteSettings.navbarLinks.createSuccess',
-      lang,
-    );
-  }
-
-  @Patch('navbar-links/:id')
-  @UseGuards(JwtAuthGuard)
-  async updateNavbarLink(
-    @Param('id') id: string,
-    @Body() updateDto: UpdateNavbarLinkDto,
-    @Request() req: any,
-  ): Promise<StandardResponse<any>> {
-    const lang = RequestUtil.getLanguage(req);
-    const link = await this.siteSettingsService.updateNavbarLink(id, updateDto);
-    return ResponseUtil.successSingle(
-      link,
-      'siteSettings.navbarLinks.updateSuccess',
-      lang,
-    );
-  }
-
-  @Delete('navbar-links/:id')
-  @UseGuards(JwtAuthGuard)
-  @HttpCode(HttpStatus.NO_CONTENT)
-  async deleteNavbarLink(
-    @Param('id') id: string,
-    @Request() req: any,
-  ): Promise<StandardResponse<SingleItemData<null> | null>> {
-    const lang = RequestUtil.getLanguage(req);
-    await this.siteSettingsService.deleteNavbarLink(id);
-    return ResponseUtil.successSingle(
-      null,
-      'siteSettings.navbarLinks.deleteSuccess',
-      lang,
-    );
-  }
 
   // =====================================================
   // SITE SETTINGS (GitHub, Hero, Statistics, About, Footer)

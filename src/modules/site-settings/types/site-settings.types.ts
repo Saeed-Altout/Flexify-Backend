@@ -1,23 +1,3 @@
-export interface INavbarLinkTranslation {
-  id: string;
-  navbarLinkId: string;
-  locale: string;
-  label: string;
-  createdAt: string;
-  updatedAt: string;
-}
-
-export interface INavbarLink {
-  id: string;
-  href: string;
-  icon: string | null;
-  orderIndex: number;
-  isActive: boolean;
-  createdAt: string;
-  updatedAt: string;
-  translations?: INavbarLinkTranslation[];
-}
-
 export interface ISiteSettingTranslation {
   id: string;
   siteSettingId: string;

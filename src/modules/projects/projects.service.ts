@@ -252,12 +252,6 @@ export class ProjectsService extends BaseService {
       throw new NotFoundException('projects.findOne.notFound');
     }
 
-    // Increment view count
-    await supabase
-      .from('projects')
-      .update({ view_count: data.view_count + 1 })
-      .eq('id', id);
-
     return this.mapToProjectWithRelations(data);
   }
 
@@ -296,12 +290,6 @@ export class ProjectsService extends BaseService {
     if (data.status !== ProjectStatus.PUBLISHED && !userId) {
       throw new NotFoundException('projects.findBySlug.notFound');
     }
-
-    // Increment view count
-    await supabase
-      .from('projects')
-      .update({ view_count: data.view_count + 1 })
-      .eq('id', data.id);
 
     const project = this.mapToProjectWithRelations(data);
 
@@ -619,6 +607,28 @@ export class ProjectsService extends BaseService {
 
       return { action: 'added' };
     }
+  }
+
+  /**
+   * Increment project view count
+   */
+  async incrementView(projectId: string): Promise<void> {
+    const supabase = this.getClient();
+
+    const { data, error } = await supabase
+      .from('projects')
+      .select('view_count')
+      .eq('id', projectId)
+      .single();
+
+    if (error || !data) {
+      throw new NotFoundException('projects.findOne.notFound');
+    }
+
+    await supabase
+      .from('projects')
+      .update({ view_count: (data.view_count || 0) + 1 })
+      .eq('id', projectId);
   }
 
   /**

@@ -205,6 +205,18 @@ export class ProjectsController {
   }
 
   // ========================================
+  // PROJECT VIEWS
+  // ========================================
+
+  @Post(':id/view')
+  @HttpCode(HttpStatus.OK)
+  async incrementView(@Param('id') id: string, @Request() req: any): Promise<StandardResponse<any>> {
+    await this.projectsService.incrementView(id);
+    const lang = RequestUtil.getLanguage(req);
+    return ResponseUtil.successSingle(null, 'projects.view.incremented', lang, false);
+  }
+
+  // ========================================
   // PROJECT COMMENTS
   // ========================================
 
@@ -212,7 +224,7 @@ export class ProjectsController {
   async getComments(@Param('id') id: string, @Request() req: any): Promise<StandardResponse<any>> {
     const comments = await this.projectsService.getComments(id);
     const lang = RequestUtil.getLanguage(req);
-    return ResponseUtil.successSingle({ comments }, 'projects.comments.success', lang);
+    return ResponseUtil.successSingle({ data: { comments } }, 'projects.comments.success', lang);
   }
 
   @Post('comments')
