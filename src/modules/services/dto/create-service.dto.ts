@@ -24,25 +24,6 @@ export class CreateServiceTranslationDto {
   @IsOptional()
   @IsString()
   description?: string;
-
-  @IsOptional()
-  @IsString()
-  @MaxLength(500)
-  shortDescription?: string;
-
-  @IsOptional()
-  @IsString()
-  content?: string;
-
-  @IsOptional()
-  @IsString()
-  @MaxLength(255)
-  metaTitle?: string;
-
-  @IsOptional()
-  @IsString()
-  @MaxLength(500)
-  metaDescription?: string;
 }
 
 export class CreateServiceDto {
@@ -55,10 +36,6 @@ export class CreateServiceDto {
   @IsString()
   @MaxLength(100)
   icon?: string;
-
-  @IsOptional()
-  @IsString()
-  imageUrl?: string;
 
   @IsOptional()
   @IsNumber()

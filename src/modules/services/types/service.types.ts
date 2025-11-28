@@ -4,10 +4,6 @@ export interface IServiceTranslation {
   locale: string;
   name: string;
   description: string | null;
-  shortDescription: string | null;
-  content: string | null;
-  metaTitle: string | null;
-  metaDescription: string | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -16,7 +12,6 @@ export interface IService {
   id: string;
   slug: string;
   icon: string | null;
-  imageUrl: string | null;
   orderIndex: number;
   isFeatured: boolean;
   isActive: boolean;
@@ -31,4 +26,3 @@ export interface IServicesListResponse {
   page: number;
   limit: number;
 }
-

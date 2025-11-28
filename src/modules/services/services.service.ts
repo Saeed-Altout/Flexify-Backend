@@ -40,7 +40,6 @@ export class ServicesService extends BaseService {
       .insert({
         slug: createDto.slug,
         icon: createDto.icon || null,
-        image_url: createDto.imageUrl || null,
         order_index: createDto.orderIndex || 0,
         is_featured: createDto.isFeatured || false,
         is_active: createDto.isActive !== undefined ? createDto.isActive : true,
@@ -58,10 +57,6 @@ export class ServicesService extends BaseService {
       locale: t.locale,
       name: t.name,
       description: t.description || null,
-      short_description: t.shortDescription || null,
-      content: t.content || null,
-      meta_title: t.metaTitle || null,
-      meta_description: t.metaDescription || null,
     }));
 
     const { error: translationsError } = await supabase
@@ -77,36 +72,6 @@ export class ServicesService extends BaseService {
     return this.findOne(service.id);
   }
 
-  /**
-   * Upload service image
-   */
-  async uploadImage(serviceId: string, file: Express.Multer.File): Promise<string> {
-    const supabase = this.getClient();
-    await this.findOne(serviceId); // Ensure service exists
-
-    const fileExt = file.originalname.split('.').pop() || 'jpg';
-    const fileName = `${serviceId}-${Date.now()}.${fileExt}`;
-    const filePath = `services/${fileName}`;
-
-    const { error: uploadError } = await supabase.storage
-      .from('service-images')
-      .upload(filePath, file.buffer, {
-        contentType: file.mimetype,
-        upsert: false,
-      });
-
-    if (uploadError) {
-      throw new BadRequestException('services.image.uploadFailed');
-    }
-
-    const { data: urlData } = supabase.storage.from('service-images').getPublicUrl(filePath);
-    const imageUrl = urlData.publicUrl;
-
-    // Update service with new image URL
-    await this.update(serviceId, { imageUrl });
-
-    return imageUrl;
-  }
 
   /**
    * Find all services with filters and pagination
@@ -143,7 +108,7 @@ export class ServicesService extends BaseService {
 
     // Search in translations
     if (search) {
-      query = query.or(`translations.name.ilike.%${search}%,translations.description.ilike.%${search}%,translations.short_description.ilike.%${search}%`);
+      query = query.or(`translations.name.ilike.%${search}%,translations.description.ilike.%${search}%`);
     }
 
     // Sort
@@ -238,7 +203,6 @@ export class ServicesService extends BaseService {
     const updateData: any = {};
     if (updateDto.slug !== undefined) updateData.slug = updateDto.slug;
     if (updateDto.icon !== undefined) updateData.icon = updateDto.icon;
-    if (updateDto.imageUrl !== undefined) updateData.image_url = updateDto.imageUrl;
     if (updateDto.orderIndex !== undefined) updateData.order_index = updateDto.orderIndex;
     if (updateDto.isFeatured !== undefined) updateData.is_featured = updateDto.isFeatured;
     if (updateDto.isActive !== undefined) updateData.is_active = updateDto.isActive;
@@ -268,10 +232,6 @@ export class ServicesService extends BaseService {
         locale: t.locale,
         name: t.name,
         description: t.description || null,
-        short_description: t.shortDescription || null,
-        content: t.content || null,
-        meta_title: t.metaTitle || null,
-        meta_description: t.metaDescription || null,
       }));
 
       const { error: translationsError } = await supabase
@@ -316,7 +276,6 @@ export class ServicesService extends BaseService {
       id: data.id,
       slug: data.slug,
       icon: data.icon,
-      imageUrl: data.image_url,
       orderIndex: data.order_index,
       isFeatured: data.is_featured,
       isActive: data.is_active,
@@ -328,10 +287,6 @@ export class ServicesService extends BaseService {
         locale: t.locale,
         name: t.name,
         description: t.description,
-        shortDescription: t.short_description,
-        content: t.content,
-        metaTitle: t.meta_title,
-        metaDescription: t.meta_description,
         createdAt: t.created_at,
         updatedAt: t.updated_at,
       })),
